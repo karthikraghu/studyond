@@ -40,7 +40,6 @@ import {
   PanelLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { studentNavigation, type NavSection } from '@/config/navigation';

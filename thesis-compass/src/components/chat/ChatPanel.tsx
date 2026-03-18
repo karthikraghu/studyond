@@ -31,7 +31,7 @@ const quickReplies = [
 ];
 
 export function ChatPanel() {
-  const [messages, setMessages] = useState(sampleMessages);
+  const [messages, setMessages] = useState<{id: string, role: 'assistant' | 'user', content: string}[]>(sampleMessages as any);
   const [inputValue, setInputValue] = useState('');
   const context = useThesisStore((s) => s.context);
 

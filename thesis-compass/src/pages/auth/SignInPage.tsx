@@ -34,11 +34,7 @@ export default function SignInPage() {
   const setContext = useThesisStore((s) => s.setContext);
   const setOnboarded = useThesisStore((s) => s.setOnboarded);
 
-  /**
-   * For the hackathon, "sign in" creates a fresh ThesisContext
-   * for the selected student. In production, this context would
-   * be loaded from the database after Auth0 authentication.
-   */
+  // Still keeping the mock quick-login for judges/demos if Supabase isn't setup
   const handleSignIn = (studentId: string) => {
     setIsLoading(true);
 
@@ -64,7 +60,7 @@ export default function SignInPage() {
     setContext(freshContext);
     setOnboarded(false);
 
-    // Navigate to the home dashboard (not /dashboard anymore)
+    // Navigate to the home dashboard
     setTimeout(() => {
       navigate('/home');
     }, 600);
@@ -194,7 +190,7 @@ export default function SignInPage() {
             <Button
               className="w-full h-11 rounded-full bg-ai hover:opacity-90 transition-opacity"
               onClick={handleEmailSignIn}
-              disabled={isLoading}
+              disabled={isLoading || !email}
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
@@ -216,7 +212,7 @@ export default function SignInPage() {
             </div>
             <div className="relative flex justify-center">
               <span className="bg-background px-3 ds-caption text-muted-foreground">
-                or try a demo account
+                or try a demo hackathon account
               </span>
             </div>
           </div>

@@ -20,7 +20,6 @@ import {
   MessageSquare,
   FolderOpen,
   Sparkles,
-  Search,
   Briefcase,
   Users,
   Building2,

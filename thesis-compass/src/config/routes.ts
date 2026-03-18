@@ -23,6 +23,7 @@ import { lazy } from 'react';
 const SignInPage = lazy(() => import('@/pages/auth/SignInPage'));
 const HomePage = lazy(() => import('@/pages/home/HomePage'));
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'));
+const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 
 export interface RouteConfig {
   path: string;
@@ -63,6 +64,12 @@ export const routes: RouteConfig[] = [
     path: '/chat',
     layout: 'app',
     component: ChatPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/settings',
+    layout: 'app',
+    component: SettingsPage,
     requiresAuth: true,
   },
 
