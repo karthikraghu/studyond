@@ -19,6 +19,7 @@
 import type { Topic, Student, Supervisor, Expert, Field, Company, University } from '@/types';
 import type { StudentProfile, GoldenTriangleMatch } from '@/types/profile';
 import { getVectorStore, type VectorSearchResult } from './vector-store';
+import { normalizePriorityId, parseCustomPreferenceLabel } from '@/config/preferences';
 
 export interface MatchScore {
   overall: number;
@@ -213,7 +214,7 @@ export function findMatchingSupervisors(
  */
 export function findMatchingExperts(
   topicFieldIds: string[],
-  topicTitle: string,
+  _topicTitle: string,
   experts: Expert[],
   companies: Company[],
   topN: number = 5
@@ -312,6 +313,108 @@ function calculateGitHubBonus(profile: StudentProfile, topic: Topic): number {
   return Math.min(bonus, 0.3); // Cap total GitHub bonus at 30%
 }
 
+function scorePriorityById(
+  priorityId: string,
+  profile: StudentProfile,
+  topic: Topic,
+  company: Company | null,
+  fields: Field[]
+): number {
+  const normalizedId = normalizePriorityId(priorityId);
+  const topicText = `${topic.title} ${topic.description || ''}`.toLowerCase();
+
+  switch (normalizedId) {
+    case 'research_field': {
+      const overlap = fieldOverlap(profile.fieldIds || [], topic.fieldIds || []);
+      return overlap;
+    }
+    case 'compensation':
+      if (topic.employment === 'yes') return 1;
+      if (topic.employment === 'open') return 0.7;
+      return 0.2;
+    case 'career_growth':
+      if (topic.employmentType === 'direct_entry' || topic.employmentType === 'graduate_program') return 1;
+      if (topic.employmentType === 'internship' || topic.employmentType === 'working_student') return 0.75;
+      if (topic.employment === 'open') return 0.6;
+      return 0.35;
+    case 'workplace_flexibility':
+      if (topic.workplaceType === 'remote') return 1;
+      if (topic.workplaceType === 'hybrid') return 0.85;
+      if (topic.workplaceType === 'on_site') return 0.35;
+      return 0.5;
+    case 'company_reputation':
+      if (!company) return 0.45;
+      if (company.size === 'large') return 1;
+      if (company.size === 'medium') return 0.75;
+      return 0.55;
+    case 'sustainability_impact': {
+      const sustainabilityKeywords = ['sustainability', 'climate', 'carbon', 'emission', 'circular', 'esg', 'green'];
+      const matches = sustainabilityKeywords.filter((keyword) => topicText.includes(keyword)).length;
+      return Math.min(1, matches / 2);
+    }
+    case 'ai_innovation': {
+      const aiKeywords = ['ai', 'machine learning', 'deep learning', 'llm', 'predictive', 'computer vision', 'data'];
+      const matches = aiKeywords.filter((keyword) => topicText.includes(keyword)).length;
+      return Math.min(1, matches / 2);
+    }
+    case 'industry_exposure':
+      return topic.companyId ? 1 : 0.35;
+    default: {
+      const customLabel = parseCustomPreferenceLabel(normalizedId);
+      if (!customLabel) {
+        return 0.5;
+      }
+
+      const tokens = customLabel
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 3)
+        .map((token) => token.toLowerCase());
+
+      if (tokens.length === 0) {
+        return 0.5;
+      }
+
+      const fieldNames = (topic.fieldIds || [])
+        .map((fid) => fields.find((field) => field.id === fid)?.name || '')
+        .join(' ')
+        .toLowerCase();
+      const companyText = `${company?.name || ''} ${company?.description || ''}`.toLowerCase();
+      const haystack = `${topicText} ${fieldNames} ${companyText}`;
+
+      const matches = tokens.filter((token) => haystack.includes(token)).length;
+      return matches > 0 ? Math.min(1, matches / tokens.length) : 0.35;
+    }
+  }
+}
+
+function scorePriorityFit(
+  profile: StudentProfile,
+  topic: Topic,
+  company: Company | null,
+  fields: Field[]
+): number {
+  const priorities = (profile.priorities || [])
+    .map((priority) => normalizePriorityId(priority))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (priorities.length === 0) {
+    return 0.5;
+  }
+
+  const totalWeight = priorities.reduce((sum, _priority, index) => sum + (priorities.length - index), 0);
+  let weightedScore = 0;
+
+  priorities.forEach((priority, index) => {
+    const weight = priorities.length - index;
+    const score = scorePriorityById(priority, profile, topic, company, fields);
+    weightedScore += score * weight;
+  });
+
+  return weightedScore / Math.max(1, totalWeight);
+}
+
 /**
  * Golden Triangle Matching — Find best (Topic, Supervisor, Company) combinations
  * 
@@ -331,9 +434,11 @@ export async function matchGoldenTriangle(
     topicsCount: topics.length,
     supervisorsCount: supervisors.length,
     profileSkills: profile.skills,
-    profileFields: profile.fieldIds
+    profileFields: profile.fieldIds,
+    profilePriorities: profile.priorities || []
   });
   const vectorStore = getVectorStore();
+  const companiesById = new Map(companies.map((company) => [company.id, company]));
   
   // Build profile text for semantic search (enhanced with GitHub data)
   const profileParts = [
@@ -384,13 +489,19 @@ export async function matchGoldenTriangle(
       ? 0.5 
       : fieldOverlap(profile.fieldIds, topic.fieldIds || []);
     const degreeMatch = topic.degrees?.includes(profile.degree) ? 1 : 0;
+    const company = topic.companyId ? companiesById.get(topic.companyId) || null : null;
+    const priorityScore = scorePriorityFit(profile, topic, company, fields);
     const githubBonus = calculateGitHubBonus(profile, topic);
     
     // Base combined score + GitHub bonus
-    const baseScore = 0.5 * vectorScore + 0.3 * fieldScore + 0.2 * degreeMatch;
+    const baseScore =
+      0.45 * vectorScore +
+      0.25 * fieldScore +
+      0.15 * degreeMatch +
+      0.15 * priorityScore;
     const combinedScore = Math.min(1, baseScore + githubBonus);
     
-    return { topic, vectorScore, fieldScore, degreeMatch, githubBonus, combinedScore };
+    return { topic, vectorScore, fieldScore, degreeMatch, priorityScore, githubBonus, combinedScore };
   });
   scoredTopics.sort((a, b) => b.combinedScore - a.combinedScore);
 
@@ -591,6 +702,23 @@ function generateMatchExplanation(
       }
       explanation += '\n\n';
     }
+  }
+
+  const priorities = profile.priorities || [];
+  if (priorities.length > 0) {
+    const topPriorities = priorities
+      .slice(0, 3)
+      .map((priorityId) => {
+        const normalized = normalizePriorityId(priorityId);
+        const customLabel = parseCustomPreferenceLabel(normalized);
+        if (customLabel) {
+          return customLabel;
+        }
+        return normalized.replace(/_/g, ' ');
+      })
+      .join(', ');
+
+    explanation += `🧭 **Priority alignment:** Ranked against your top preferences (${topPriorities}).\n\n`;
   }
 
   // Triangle score

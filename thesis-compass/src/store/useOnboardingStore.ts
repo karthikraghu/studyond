@@ -47,6 +47,9 @@ interface OnboardingStore {
   
   // Merge GitHub stats into the student profile
   mergeGithubIntoProfile: () => void;
+
+  // Persist ranked preferences from the Preferences page
+  setPriorities: (priorities: string[]) => void;
   
   // Sync form data into a StudentProfile (fallback if CV upload is skipped)
   syncProfileFromForm: () => void;
@@ -114,6 +117,19 @@ export const useOnboardingStore = create<OnboardingStore>()(
           },
         };
       }),
+
+      setPriorities: (priorities) => set((state) => ({
+        formData: {
+          ...(state.formData as Record<string, unknown>),
+          priorities,
+        } as PartialOnboardingData,
+        studentProfile: state.studentProfile
+          ? {
+              ...state.studentProfile,
+              priorities,
+            }
+          : state.studentProfile,
+      })),
 
       syncProfileFromForm: () => set((state) => {
         if (state.formData.role !== 'student') return state;
