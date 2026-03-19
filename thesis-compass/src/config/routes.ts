@@ -22,7 +22,7 @@ import { lazy } from 'react';
 // (Only loaded when the user navigates to that route)
 const OnboardingPage = lazy(() => import('@/pages/onboarding/OnboardingPage'));
 const HomePage = lazy(() => import('@/pages/home/HomePage'));
-const ChatPage = lazy(() => import('@/pages/chat/ChatPage'));
+const WorkspacePage = lazy(() => import('@/pages/workspace/WorkspacePage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const ValidateTopicPage = lazy(() => import('@/pages/validate/ValidateTopicPage'));
 const PreferencesPage = lazy(() => import('@/pages/preferences/PreferencesPage'));
@@ -71,7 +71,7 @@ export const routes: RouteConfig[] = [
   {
     path: '/chat',
     layout: 'app',
-    component: ChatPage,
+    component: WorkspacePage,
     requiresAuth: true,
   },
   {

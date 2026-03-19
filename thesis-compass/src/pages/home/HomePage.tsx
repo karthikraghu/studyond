@@ -11,6 +11,7 @@
  * The greeting adapts based on the time of day.
  */
 
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -21,8 +22,11 @@ import {
   GraduationCap,
   BrainCircuit,
   Settings2,
-  ArrowRight
+  ArrowRight,
+  X,
+  CheckCircle2
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 
@@ -141,8 +145,17 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [showNotification, setShowNotification] = useState(false);
   const greeting = getGreeting();
   const formData = useOnboardingStore((state) => state.formData);
+
+  useEffect(() => {
+    // Simulate autonomous agent discovering a match
+    if (formData.role === 'student') {
+      const timer = setTimeout(() => setShowNotification(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.role]);
 
   // We safely read the user's name if they have filled it out during onboarding.
   const userName = "fullName" in formData && formData.fullName 
@@ -167,6 +180,52 @@ export default function HomePage() {
           </h1>
           <p className="text-muted-foreground text-lg mt-3 font-medium max-w-2xl">Welcome back to your Thesis Compass.</p>
         </motion.div>
+
+        {/* ── Autonomous Agent Notification ── */}
+        {showNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 100 }}
+            className="bg-primary/5 border border-primary/20 rounded-[2rem] p-6 relative overflow-hidden shadow-lg shadow-primary/5"
+          >
+            <div className="absolute top-0 right-0 p-4">
+              <button onClick={() => setShowNotification(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                <Sparkles className="w-7 h-7 text-primary animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-primary text-white border-none font-black text-[10px] uppercase tracking-widest px-3 py-1">
+                    Agent Action Taken
+                  </Badge>
+                  <span className="text-xs text-muted-foreground font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> 2 mins ago
+                  </span>
+                </div>
+                <h3 className="text-xl font-black tracking-tight text-foreground">
+                  I found a new match & drafted an intro!
+                </h3>
+                <p className="text-base text-muted-foreground font-medium max-w-3xl leading-relaxed">
+                  While you were away, <strong>Swiss AI Lab</strong> posted a new thesis topic matching your priority in "AI Innovation". I've proactively added them to your Matches and drafted a personalized introduction email based on your CV profile.
+                </p>
+                <div className="pt-2 flex gap-3">
+                  <button onClick={() => navigate('/matches')} className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-md hover:bg-primary/90 transition-colors">
+                    Review Draft
+                  </button>
+                  <button onClick={() => setShowNotification(false)} className="px-5 py-2.5 bg-background text-foreground text-sm font-bold rounded-xl border border-border hover:bg-muted transition-colors">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Action Grid ── */}
         <motion.div
