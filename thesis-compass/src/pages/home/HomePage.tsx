@@ -24,11 +24,15 @@ import {
   Settings2,
   ArrowRight,
   X,
-  CheckCircle2
+  CheckCircle2,
+  FileText,
+  Clock
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
+import projectsData from '@/data/projects.json';
+import studentsData from '@/data/students.json';
 
 // -- Time-aware greeting logic --
 
@@ -112,13 +116,18 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
         title: 'Post a Thesis Topic',
         highlight: 'Post',
         description: 'Advertise a research opportunity to our talented student pool.',
-        path: '/topics',
+        path: '/topics/new',
+        className: 'md:col-span-3 p-8 border-primary/20 bg-primary/[0.03]',
+        iconClassName: 'w-8 h-8 text-primary mb-2',
       },
       {
         icon: Users,
         title: 'Review Student Proposals',
+        highlight: 'Review',
         description: 'Evaluate incoming pitches from eager undergraduates and postgrads.',
-        path: '/topics',
+        path: '/proposals',
+        className: 'md:col-span-3 p-8',
+        iconClassName: 'w-8 h-8 text-blue-500 mb-2',
       },
     ];
   }
@@ -304,6 +313,68 @@ export default function HomePage() {
             </motion.button>
           ))}
         </motion.div>
+
+        {/* ── Company Specific Sections ── */}
+        {formData.role === 'company' && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.25 }}
+            className="mt-16"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
+                  Recent Student Proposals
+                </h2>
+                <p className="text-muted-foreground mt-1">Students proactively seeking opportunities in your field.</p>
+              </div>
+              <button onClick={() => navigate('/proposals')} className="text-primary font-bold text-sm hover:underline flex flex-row items-center gap-1">
+                View all <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projectsData.filter(p => p.state === 'proposed').slice(0, 3).map((project) => {
+                const student = studentsData.find(s => s.id === project.studentId);
+                return (
+                  <div key={project.id} className="relative group p-6 rounded-3xl border border-border bg-card/60 backdrop-blur-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300 flex flex-col gap-4">
+                    
+                    <div className="flex items-start justify-between">
+                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold uppercase tracking-wider text-[10px]">
+                        New Proposal
+                      </Badge>
+                      <div className="flex items-center text-xs text-muted-foreground font-medium gap-1">
+                        <Clock className="w-3.5 h-3.5" /> {new Date(project.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-black leading-tight tracking-tight text-foreground line-clamp-2">
+                      {project.title}
+                    </h3>
+                    
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      <span className="font-semibold text-foreground/80">Motivation:</span> {project.motivation || "Student is eager to explore this topic..."}
+                    </p>
+
+                    <div className="mt-auto pt-4 border-t border-border flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-bold text-xs uppercase text-foreground/60">
+                          {student ? `${student.firstName[0]}${student.lastName[0]}` : 'U'}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold leading-none">{student ? `${student.firstName} ${student.lastName}` : 'Unknown Student'}</span>
+                          <span className="text-[11px] text-muted-foreground mt-0.5">{student?.academicTitle || 'Masters Student'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
       </div>
     </div>

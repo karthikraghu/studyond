@@ -89,8 +89,8 @@ export const companyNavigation: NavSection[] = [
   {
     heading: 'Manage',
     items: [
-      { icon: Sparkles, label: 'My Topics', path: '/topics' },
-      { icon: Users, label: 'Applicants', path: '/applicants' },
+      { icon: Sparkles, label: 'Post a Topic', path: '/topics/new' },
+      { icon: Users, label: 'Proposals', path: '/proposals' },
       { icon: Building2, label: 'Company Profile', path: '/profile' },
     ],
   },

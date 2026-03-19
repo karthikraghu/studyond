@@ -30,6 +30,8 @@ const MatchPage = lazy(() => import('@/pages/matches/MatchPage'));
 const ActivityPage = lazy(() => import('@/pages/activity/ActivityPage'));
 const ExpertsPage = lazy(() => import('@/pages/experts/ExpertsPage'));
 const TopicsPage = lazy(() => import('@/pages/topics/TopicsPage'));
+const PostTopicPage = lazy(() => import('@/pages/topics/PostTopicPage'));
+const ProposalsPage = lazy(() => import('@/pages/proposals/ProposalsPage'));
 const OrganizationsPage = lazy(() => import('@/pages/organizations/OrganizationsPage'));
 
 
@@ -116,6 +118,18 @@ export const routes: RouteConfig[] = [
     path: '/topics',
     layout: 'app',
     component: TopicsPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/topics/new',
+    layout: 'app',
+    component: PostTopicPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/proposals',
+    layout: 'app',
+    component: ProposalsPage,
     requiresAuth: true,
   },
   {

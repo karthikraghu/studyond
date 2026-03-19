@@ -43,7 +43,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { studentNavigation, type NavSection } from '@/config/navigation';
+import { studentNavigation, companyNavigation, type NavSection } from '@/config/navigation';
 import studyondLogo from '@/assets/studyond.svg';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 
@@ -57,8 +57,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const { formData, reset } = useOnboardingStore();
 
-  // Dynamically resolve navigation based on role placeholder (expand later when we have more layouts)
-  const navigation: NavSection[] = studentNavigation;
+  // Dynamically resolve navigation based on role 
+  const navigation: NavSection[] = formData.role === 'company' ? companyNavigation : studentNavigation;
 
   const handleLogout = () => {
     reset(); // Deeply clears the persistent Zustand store
