@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Plus, X, Camera } from 'lucide-react';
+import { Save, Plus, X, Camera, Github } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
+import { GithubStatsModal } from '@/components/GitHubStatsModal';
 
 
 
@@ -34,6 +35,7 @@ export default function SettingsPage() {
   const [startYear, setStartYear] = useState('2024');
   const [endMonth, setEndMonth] = useState('sep');
   const [endYear, setEndYear] = useState('2026');
+  const [githubUsername, setGithubUsername] = useState('');
   
   const [newFieldText, setNewFieldText] = useState('');
   const [isAddingField, setIsAddingField] = useState(false);
@@ -61,6 +63,10 @@ export default function SettingsPage() {
       if ("techStack" in formData && formData.techStack) {
         setFields(formData.techStack.split(',').map(s => s.trim()));
       }
+      // Load GitHub username
+      if ("githubUsername" in formData && formData.githubUsername) {
+        setGithubUsername(formData.githubUsername);
+      }
     }
   }, [formData]);
 
@@ -82,6 +88,8 @@ export default function SettingsPage() {
     if ("university" in formData) newData.university = university;
     if ("degreeProgram" in formData) newData.degreeProgram = studyProgram;
     if ("techStack" in formData) newData.techStack = fields.join(', ');
+    // Always persist github username if it was entered
+    if (githubUsername) newData.githubUsername = githubUsername;
 
     updateData(newData);
 
@@ -391,6 +399,30 @@ export default function SettingsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  {/* GitHub Username — full width */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label
+                      htmlFor="githubUsername"
+                      className="font-semibold text-[13px] flex items-center gap-2"
+                    >
+                      <Github className="w-4 h-4" />
+                      GitHub Username
+                      {/* The info icon — opens the stats modal */}
+                      <GithubStatsModal username={githubUsername} />
+                    </Label>
+                    <div className="relative max-w-xs">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
+                      <Input
+                        id="githubUsername"
+                        value={githubUsername}
+                        onChange={(e) => setGithubUsername(e.target.value)}
+                        placeholder="your-github-handle"
+                        className="h-10 bg-muted/30 pl-7"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Optional · Used to analyze your real-world dev skills.</p>
                   </div>
                 </div>
               </div>

@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Github } from "lucide-react";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
+import { GithubStatsModal } from "../GitHubStatsModal";
 
 // The schemas & types
 import { 
@@ -40,6 +41,7 @@ function StudentForm() {
       university: ("university" in formData ? formData.university : "") || "",
       degreeProgram: ("degreeProgram" in formData ? formData.degreeProgram : "") || "",
       techStack: ("techStack" in formData ? formData.techStack : "") || "",
+      githubUsername: ("githubUsername" in formData ? formData.githubUsername : "") || "",
     },
   });
 
@@ -209,6 +211,30 @@ function StudentForm() {
                 <FormLabel>Tech Stack</FormLabel>
                 <FormControl><Input placeholder="React, Node.js, Python..." {...field} /></FormControl>
                 <FormDescription>Comma-separated skills</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* GitHub Username field with stats modal trigger */}
+          <FormField
+            control={form.control}
+            name="githubUsername"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Github className="w-4 h-4" />
+                  GitHub Username
+                  {/* The info icon — renders the modal if a username is provided */}
+                  <GithubStatsModal username={field.value} />
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
+                    <Input placeholder="your-github-handle" className="pl-7" {...field} />
+                  </div>
+                </FormControl>
+                <FormDescription>Optional · Used to analyze your dev skills for better matches.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

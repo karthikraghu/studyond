@@ -19,6 +19,10 @@ interface OnboardingStore {
   // --- CV Profile state ---
   studentProfile: StudentProfile | null; // Full profile from CV extraction
 
+  // --- GitHub state ---
+  githubStats: any | null;
+  isFetchingGithub: boolean;
+
   // --- Actions ---
   // Advance or retreat in the wizard flow.
   nextStep: () => void;
@@ -40,15 +44,15 @@ interface OnboardingStore {
   
   // Let's us easily start over, wiping the slate clean.
   reset: () => void;
+
+  // Fetches GitHub stats
+  fetchGithubStats: (username: string) => Promise<void>;
 }
 
 // ----------------------------------------------------------------------
 // 2. Initializing our Store Instance
 // ----------------------------------------------------------------------
 
-// We use `create` from Zustand. It provides a `set` hook to mutate state.
-// Why Zustand? Because it lets multiple isolated step components read/write to 
-// this form without wrapping the whole app in a large React Context provider.
 export const useOnboardingStore = create<OnboardingStore>()(
   persist(
     (set) => ({
@@ -56,6 +60,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
       formData: {},
       isOnboarded: false,
       studentProfile: null,
+      githubStats: null,
+      isFetchingGithub: false,
       
       nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 3) })),
       prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
@@ -70,7 +76,20 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
       completeOnboarding: () => set({ isOnboarded: true }),
 
-      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false, studentProfile: null }),
+      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false, studentProfile: null, githubStats: null, isFetchingGithub: false }),
+
+      fetchGithubStats: async (username: string) => {
+        set({ isFetchingGithub: true });
+        try {
+          const res = await fetch(`http://localhost:3001/api/github/${username}`);
+          if (!res.ok) throw new Error("Failed to fetch");
+          const data = await res.json();
+          set({ githubStats: data, isFetchingGithub: false });
+        } catch (error) {
+          console.error("Error fetching GitHub stats", error);
+          set({ isFetchingGithub: false, githubStats: null });
+        }
+      },
     }),
     {
       name: "onboarding-storage",

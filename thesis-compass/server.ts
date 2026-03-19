@@ -386,6 +386,57 @@ app.post('/api/process-cv', upload.single('file'), async (req, res) => {
   }
 });
 
+// ── GitHub Profile Extraction Endpoint ──
+// Fetches GitHub stats "at the back" to avoid CORS & hide complexity from frontend
+app.get('/api/github/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Fetch public repos
+    const reposRes = await fetch(`https://api.github.com/users/${username}/repos?per_page=100&sort=pushed`);
+    if (!reposRes.ok) throw new Error('Failed to fetch GitHub repos');
+    const repos: any = await reposRes.json();
+
+    // Fetch recent events to calculate commit activity
+    const eventsRes = await fetch(`https://api.github.com/users/${username}/events/public`);
+    const events: any = eventsRes.ok ? await eventsRes.json() : [];
+
+    // 1. Calculate Language Statistics (Approximate bytes across top 100 repos)
+    const languageStats: Record<string, number> = {};
+    let languagePromises = repos.slice(0, 15).map(async (repo: any) => {
+      if (repo.language) {
+        // Fallback fast approx
+        languageStats[repo.language] = (languageStats[repo.language] || 0) + (repo.size * 1024);
+      }
+    });
+    
+    // 2. Extract Topics (Tags)
+    const topicsSet = new Set<string>();
+    repos.forEach((repo: any) => {
+      repo.topics?.forEach((topic: string) => topicsSet.add(topic));
+    });
+    
+    // 4. Commit History (Last 90 days from public events approx)
+    let totalCommitsYear = 0;
+    events.forEach((ev: any) => {
+      if (ev.type === 'PushEvent') {
+        totalCommitsYear += ev.payload.commits?.length || 0;
+      }
+    });
+
+    res.json({
+      username,
+      languageStats,
+      topics: Array.from(topicsSet).slice(0, 15),
+      totalCommitsYear: totalCommitsYear * 4, // extrapolating sample to annual estimate
+    });
+
+  } catch (err: any) {
+    console.error('GitHub fetch error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch GitHub data' });
+  }
+});
+
 // ── Match Profile endpoint ──
 app.post('/api/match-profile', async (req, res) => {
   try {

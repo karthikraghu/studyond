@@ -20,6 +20,7 @@ export const StudentSchema = z.object({
   // We expect a comma-separated string, but we can refine it if we wanted. 
   // For now, simple string validation suffices.
   techStack: z.string().min(1, "Please list at least one technology"),
+  githubUsername: z.string().optional(),
 });
 
 export const CompanySchema = z.object({
