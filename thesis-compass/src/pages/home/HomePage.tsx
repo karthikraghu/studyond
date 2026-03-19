@@ -65,7 +65,7 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
         title: 'Find relevant roles for your profile',
         highlight: 'relevant roles',
         description: 'Match your background with specific industry and research positions. We utilize your GitHub and academic profile to find the best fit.',
-        path: '/chat',
+        path: '/matches',
         className: 'md:col-span-4 md:row-span-2 p-8',
         iconClassName: 'w-8 h-8 text-blue-500 mb-2',
       },

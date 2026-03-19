@@ -5,35 +5,25 @@ import { type StudentProfile, type GitHubStats } from "../types/profile";
 
 // ----------------------------------------------------------------------
 // 1. Defininig the Shape of our Store 
-//    What data do we hold? What functions change that data?
 // ----------------------------------------------------------------------
 
-// By defining a clear interface, we ensure that anywhere in the app we 
-// interact with the store, TypeScript gives us autocomplete and catches bugs.
 interface OnboardingStore {
   // --- Data state ---
   currentStep: number;
   formData: PartialOnboardingData; 
-  isOnboarded: boolean; // Tracks if they fully finished the wizard
+  isOnboarded: boolean; 
   
   // --- CV Profile state ---
-  studentProfile: StudentProfile | null; // Full profile from CV extraction
+  studentProfile: StudentProfile | null; 
 
   // --- GitHub state ---
   githubStats: GitHubStats | null;
   isFetchingGithub: boolean;
 
   // --- Actions ---
-  // Advance or retreat in the wizard flow.
   nextStep: () => void;
   prevStep: () => void;
-  
-  // Set a specific step (e.g., if they click "Edit Role" later, we jump back to 1).
   setStep: (step: number) => void; 
-  
-  // As a user types in their form, we merge their input into the accumulated data.
-  // We use Partial<PartialOnboardingData> so that we only update the specific 
-  // fields they changed (like `{ role: 'student' }`) without erasing the rest.
   updateData: (newData: Partial<PartialOnboardingData>) => void;
   
   // Store the full StudentProfile from CV extraction
@@ -41,6 +31,9 @@ interface OnboardingStore {
   
   // Merge GitHub stats into the student profile
   mergeGithubIntoProfile: () => void;
+  
+  // Sync form data into a StudentProfile (fallback if CV upload is skipped)
+  syncProfileFromForm: () => void;
   
   // Confirms the wizard is entirely finished
   completeOnboarding: () => void;
@@ -67,7 +60,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       isFetchingGithub: false,
       
       nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 4) })),
-      prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
+      prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
       setStep: (step) => set({ currentStep: step }),
 
       updateData: (newData) =>
@@ -87,9 +80,44 @@ export const useOnboardingStore = create<OnboardingStore>()(
         };
       }),
 
+      syncProfileFromForm: () => set((state) => {
+        if (state.formData.role !== 'student') return state;
+        
+        const existing = state.studentProfile;
+        const data = state.formData;
+
+        // Build a profile shell from form data
+        const newProfile: StudentProfile = {
+          id: existing?.id || `student-${Math.random().toString(36).substr(2, 9)}`,
+          firstName: existing?.firstName || data.fullName?.split(' ')[0] || 'Student',
+          lastName: existing?.lastName || data.fullName?.split(' ').slice(1).join(' ') || '',
+          email: existing?.email || data.email || null,
+          degree: existing?.degree || (data.degreeProgram?.toLowerCase().includes('master') ? 'msc' : 'bsc'),
+          studyProgramId: existing?.studyProgramId || null,
+          universityId: existing?.universityId || null,
+          universityName: existing?.universityName || data.university || null,
+          skills: (existing?.skills && existing.skills.length > 0) ? existing.skills : (data.techStack?.split(',').map(s => s.trim()) || []),
+          about: existing?.about || null,
+          objectives: existing?.objectives || ['topic'],
+          fieldIds: existing?.fieldIds || [],
+          semanticTags: existing?.semanticTags || [],
+          github: state.githubStats || undefined,
+          priorities: data.priorities || []
+        };
+
+        return { studentProfile: newProfile };
+      }),
+
       completeOnboarding: () => set({ isOnboarded: true }),
 
-      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false, studentProfile: null, githubStats: null, isFetchingGithub: false }),
+      reset: () => set({ 
+        currentStep: 1, 
+        formData: {}, 
+        isOnboarded: false, 
+        studentProfile: null, 
+        githubStats: null, 
+        isFetchingGithub: false 
+      }),
 
       fetchGithubStats: async (username: string) => {
         set({ isFetchingGithub: true });

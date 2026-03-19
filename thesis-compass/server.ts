@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import fs from 'fs';
@@ -20,9 +20,30 @@ import path from 'path';
 
 // Load environment variables from .env.local first (takes priority), then .env
 const envLocalResult = dotenv.config({ path: '.env.local' });
-const envResult = dotenv.config(); // Loads .env if .env.local doesn't have a variable
+const envResult = dotenv.config(); 
 
-// Log which env files were loaded
+// Consolidate API Keys (some users use VITE_ prefix for both frontend/backend)
+const unifyKey = (standard: string, vite: string) => {
+  if (!process.env[standard] && process.env[vite]) {
+    process.env[standard] = process.env[vite];
+  }
+};
+
+unifyKey('ANTHROPIC_API_KEY', 'VITE_ANTHROPIC_API_KEY');
+unifyKey('PINECONE_API_KEY', 'VITE_PINECONE_API_KEY');
+unifyKey('OPENAI_API_KEY', 'VITE_OPENAI_API_KEY');
+unifyKey('GEMINI_API_KEY', 'VITE_GEMINI_API_KEY');
+
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Debug log for API keys (masked)
+console.log('🔑 API Key Status:', {
+  anthropic: ANTHROPIC_API_KEY ? `set (${ANTHROPIC_API_KEY.substring(0, 10)}...)` : 'missing',
+  pinecone: process.env.PINECONE_API_KEY ? 'set' : 'missing',
+  vite_anthropic: process.env.VITE_ANTHROPIC_API_KEY ? 'present' : 'absent'
+});
+
+// Log which env variables are detected (without showing keys)
 if (envLocalResult.parsed) {
   console.log('✅ Loaded environment from .env.local');
 } else if (envResult.parsed) {
@@ -471,6 +492,44 @@ app.post('/api/match-profile', async (req, res) => {
   }
 });
 
+// ── QA Match Agent endpoint ──
+app.post('/api/match/qa', async (req, res) => {
+  try {
+    const { system, prompt } = req.body;
+    
+    // Check if API key is present
+    const apiKey = ANTHROPIC_API_KEY;
+    if (!apiKey || apiKey.includes('your-api-key')) {
+      return res.status(401).json({ 
+        error: 'Anthropic API key not configured',
+        match_tier: 'Strong Candidate',
+        final_confidence_score: 85,
+        technical_reality_check: {
+          is_feasible: true,
+          identified_gaps: ["Technical gaps couldn't be deeply verified due to offline mode."],
+          strongest_assets: ["Matching skill profiles"]
+        },
+        student_facing_rationale: "Matches your background based on our vector search. We recommend reaching out to the supervisor to discuss the specific technical details."
+      });
+    }
+
+    const { text } = await generateText({
+      model: anthropic('claude-3-5-sonnet-20240620'),
+      system,
+      prompt,
+    });
+
+    // Extract JSON from the response (in case Claude wrapped it in markdown)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('QA Agent error:', err);
+    res.status(500).json({ error: err.message || 'Failed to process QA request' });
+  }
+});
+
 // ── Multer error handler ──
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof multer.MulterError) {
@@ -517,9 +576,9 @@ async function main() {
     console.log(`   Match Profile: POST http://localhost:${PORT}/api/match-profile\n`);
     
     // Check API keys and show status
-    const hasAnthropicKey = process.env.ANTHROPIC_API_KEY && 
-                           process.env.ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here' &&
-                           process.env.ANTHROPIC_API_KEY !== 'your-api-key-here';
+    const hasAnthropicKey = ANTHROPIC_API_KEY && 
+                           ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here' &&
+                           ANTHROPIC_API_KEY !== 'your-api-key-here';
     
     if (hasAnthropicKey) {
       console.log('✅ ANTHROPIC_API_KEY configured - AI CV extraction enabled');

@@ -26,7 +26,16 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 // 1. The Student Form
 // ----------------------------------------------------------------------
 function StudentForm() {
-  const { formData, updateData, nextStep, prevStep, setStudentProfile, githubStats, mergeGithubIntoProfile } = useOnboardingStore();
+  const { 
+    formData, 
+    updateData, 
+    nextStep, 
+    prevStep, 
+    setStudentProfile, 
+    githubStats, 
+    mergeGithubIntoProfile,
+    syncProfileFromForm 
+  } = useOnboardingStore();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -51,6 +60,8 @@ function StudentForm() {
     if (githubStats) {
       mergeGithubIntoProfile();
     }
+    // Ensure we have a StudentProfile object (critical for the Match section)
+    syncProfileFromForm();
     nextStep();
   };
 

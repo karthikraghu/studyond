@@ -44,6 +44,8 @@ export interface StudentProfile {
   semanticTags: string[];
   /** GitHub profile data (optional, fetched separately from CV) */
   github?: GitHubStats;
+  /** Ordered list of preference IDs (from the Preferences page) */
+  priorities?: string[];
 }
 
 /**

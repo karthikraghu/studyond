@@ -302,6 +302,12 @@ export async function matchGoldenTriangle(
   universities: University[],
   topK: number = 5
 ): Promise<GoldenTriangleMatch[]> {
+  console.log('matchGoldenTriangle called with:', {
+    topicsCount: topics.length,
+    supervisorsCount: supervisors.length,
+    profileSkills: profile.skills,
+    profileFields: profile.fieldIds
+  });
   const vectorStore = getVectorStore();
   
   // Build profile text for semantic search (enhanced with GitHub data)
@@ -341,7 +347,7 @@ export async function matchGoldenTriangle(
     topicResults = topics.map(t => ({
       id: `topic-${t.id}`,
       score: 0.5,
-      metadata: { type: 'topic', ...t }
+      metadata: { ...t, type: 'topic' }
     }));
   }
 
@@ -349,7 +355,9 @@ export async function matchGoldenTriangle(
   const scoredTopics = topicResults.map(r => {
     const topic = (r.metadata as unknown) as Topic;
     const vectorScore = r.score;
-    const fieldScore = fieldOverlap(profile.fieldIds, topic.fieldIds || []);
+    const fieldScore = profile.fieldIds.length === 0 
+      ? 0.5 
+      : fieldOverlap(profile.fieldIds, topic.fieldIds || []);
     const degreeMatch = topic.degrees?.includes(profile.degree) ? 1 : 0;
     const githubBonus = calculateGitHubBonus(profile, topic);
     
@@ -374,7 +382,7 @@ export async function matchGoldenTriangle(
     supervisorResults = supervisors.map(s => ({
       id: `supervisor-${s.id}`,
       score: 0.5,
-      metadata: { type: 'supervisor', ...s }
+      metadata: { ...s, type: 'supervisor' }
     }));
   }
 
@@ -383,7 +391,9 @@ export async function matchGoldenTriangle(
     const sup = (r.metadata as unknown) as Supervisor;
     const vectorScore = r.score;
     const supFieldIds = sup.fieldIds || [];
-    const fieldScore = fieldOverlap(profile.fieldIds, supFieldIds);
+    const fieldScore = profile.fieldIds.length === 0 
+      ? 0.5 
+      : fieldOverlap(profile.fieldIds, supFieldIds);
     const uniBonus = sup.universityId === profile.universityId ? 0.2 : 0;
     const combinedScore = 0.4 * vectorScore + 0.4 * fieldScore + 0.2 * uniBonus;
     return { supervisor: sup, vectorScore, fieldScore, uniBonus, combinedScore };
@@ -398,7 +408,7 @@ export async function matchGoldenTriangle(
 
     // Find best supervisor for this topic
     let bestSupervisor: (typeof scoredSupervisors[0] & { topicScore: number }) | null = null;
-    let bestSupScore = 0;
+    let bestSupScore = -1; // Start with -1 to ensure even 0-score matches are picked up
 
     for (const supResult of scoredSupervisors.slice(0, 10)) {
       const sup = supResult.supervisor;

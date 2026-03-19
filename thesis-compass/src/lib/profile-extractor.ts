@@ -201,8 +201,8 @@ export function extractProfileHeuristic(rawText: string): StudentProfile {
  * Extract profile using Claude LLM
  */
 export async function extractProfileWithLLM(rawText: string): Promise<StudentProfile | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey.includes('your-api-key')) return null;
 
   const anthropic = new Anthropic({ apiKey });
 

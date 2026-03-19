@@ -26,6 +26,7 @@ const ChatPage = lazy(() => import('@/pages/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const ValidateTopicPage = lazy(() => import('@/pages/validate/ValidateTopicPage'));
 const PreferencesPage = lazy(() => import('@/pages/preferences/PreferencesPage'));
+const MatchPage = lazy(() => import('@/pages/matches/MatchPage'));
 
 export interface RouteConfig {
   path: string;
@@ -84,6 +85,12 @@ export const routes: RouteConfig[] = [
     path: '/preferences',
     layout: 'app',
     component: PreferencesPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/matches',
+    layout: 'app',
+    component: MatchPage,
     requiresAuth: true,
   },
 

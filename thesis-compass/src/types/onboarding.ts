@@ -21,6 +21,8 @@ export const StudentSchema = z.object({
   // For now, simple string validation suffices.
   techStack: z.string().min(1, "Please list at least one technology"),
   githubUsername: z.string().optional(),
+  /** Ordered list of preference IDs (e.g., ["1", "2", "3", "4"]) */
+  priorities: z.array(z.string()).optional(),
 });
 
 export const CompanySchema = z.object({

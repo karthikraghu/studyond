@@ -25,6 +25,7 @@ import {
   Building2,
   Settings,
   ChevronRight,
+  Target,
 } from 'lucide-react';
 
 // -- Types --
@@ -62,6 +63,7 @@ export const studentNavigation: NavSection[] = [
   {
     heading: 'Explore',
     items: [
+      { icon: Target, label: 'Matches', path: '/matches' },
       { icon: Sparkles, label: 'Topics', path: '/topics' },
       { icon: Briefcase, label: 'Jobs', path: '/jobs' },
       { icon: Users, label: 'People', path: '/people', expandable: true },
