@@ -1,4 +1,3 @@
-import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
 
@@ -6,6 +5,7 @@ import { useOnboardingStore } from "../../store/useOnboardingStore";
 import { StepRoleSelection } from "./StepRoleSelection";
 import { StepRoleForms } from "./StepRoleForms";
 import { StepSubmission } from "./StepSubmission";
+import { StepTopicInquiry } from "./StepTopicInquiry";
 
 export function OnboardingWizard() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
@@ -19,10 +19,12 @@ export function OnboardingWizard() {
         <div className="border-b p-4 bg-muted/20">
           <div className="flex items-center justify-between text-sm font-medium text-muted-foreground w-1/2 mx-auto">
             <span className={currentStep >= 1 ? "text-primary font-bold" : ""}>1. Role</span>
-            <div className={`h-[2px] w-12 ${currentStep >= 2 ? "bg-primary" : "bg-border"} transition-colors`} />
+            <div className={`h-[2px] w-8 ${currentStep >= 2 ? "bg-primary" : "bg-border"} transition-colors`} />
             <span className={currentStep >= 2 ? "text-primary font-bold" : ""}>2. Details</span>
-            <div className={`h-[2px] w-12 ${currentStep >= 3 ? "bg-primary" : "bg-border"} transition-colors`} />
-            <span className={currentStep >= 3 ? "text-primary font-bold" : ""}>3. Finish</span>
+            <div className={`h-[2px] w-8 ${currentStep >= 3 ? "bg-primary" : "bg-border"} transition-colors`} />
+            <span className={currentStep >= 3 ? "text-primary font-bold" : ""}>3. Review</span>
+            <div className={`h-[2px] w-8 ${currentStep >= 4 ? "bg-primary" : "bg-border"} transition-colors`} />
+            <span className={currentStep >= 4 ? "text-primary font-bold" : ""}>4. Status</span>
           </div>
         </div>
 
@@ -61,6 +63,18 @@ export function OnboardingWizard() {
                 transition={{ duration: 0.3 }}
               >
                 <StepSubmission />
+              </motion.div>
+            )}
+
+            {currentStep === 4 && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <StepTopicInquiry />
               </motion.div>
             )}
           </AnimatePresence>

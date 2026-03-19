@@ -1,52 +1,23 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Loader2, Database, User, Building2, Code2, Github, GraduationCap, Mail } from "lucide-react";
+import { Loader2, Database, User, Building2, Code2, Github, GraduationCap, Mail } from "lucide-react";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 
 export function StepSubmission() {
-  const navigate = useNavigate();
-  const { formData, prevStep, completeOnboarding } = useOnboardingStore();
+  const { formData, prevStep, nextStep } = useOnboardingStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleFinalSubmit = () => {
     setIsSubmitting(true);
     
-    // 1. Simulating the API Call
+    // Simulating save then advancing to topic inquiry
     setTimeout(() => {
-      // 2. Logging the final validated payload
-      console.log("🚀 FINAL PAYLOAD SAVING TO mock-data/db.json:", JSON.stringify(formData, null, 2));
-      
+      console.log("🚀 PAYLOAD SAVED:", JSON.stringify(formData, null, 2));
       setIsSubmitting(false);
-      setIsSuccess(true);
-    }, 1500);
+      nextStep();
+    }, 800);
   };
-
-  if (isSuccess) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-6 text-center animate-in zoom-in duration-500">
-        <div className="p-4 bg-green-500/10 rounded-full">
-          <CheckCircle2 className="w-16 h-16 text-green-500" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-3xl font-bold">You're All Set!</h2>
-          <p className="text-muted-foreground w-3/4 mx-auto">
-            Your profile has been created successfully. The console holds your mock JSON payload.
-          </p>
-        </div>
-        <div className="pt-8">
-          {/* Redirects user to Dashboard without wiping state */}
-          <Button size="lg" onClick={() => {
-            completeOnboarding();
-            navigate("/home");
-          }}>Go to Dashboard</Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full animate-in fade-in zoom-in duration-300">
       <div className="mb-8">
@@ -178,15 +149,6 @@ export function StepSubmission() {
 
           </div>
 
-          {/* Sync Note */}
-          <div className="mt-8 p-3 bg-primary/5 border border-primary/10 rounded-lg flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Database className="w-4 h-4 text-primary" />
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-normal">
-              Clicking finish will synchronize this profile with the <code className="bg-muted px-1 rounded text-primary">mock-data</code> local storage for instant availability.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -207,7 +169,7 @@ export function StepSubmission() {
           {isSubmitting ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
           ) : (
-            "Finish Setup"
+            "Continue"
           )}
         </Button>
       </div>

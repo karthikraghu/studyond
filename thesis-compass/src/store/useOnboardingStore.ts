@@ -63,7 +63,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       githubStats: null,
       isFetchingGithub: false,
       
-      nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 3) })),
+      nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 4) })),
       prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
       setStep: (step) => set({ currentStep: step }),
 
