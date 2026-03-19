@@ -530,6 +530,67 @@ app.post('/api/match/qa', async (req, res) => {
   }
 });
 
+// ── Multi-Agent Thesis Validation Endpoint (SSE) ──
+import { compileThesisGraph } from './api/agents/graph.js';
+import { HumanMessage } from '@langchain/core/messages';
+
+app.post('/api/validate-thesis', async (req, res) => {
+  const { initialPitch, threadId = 'default-thread' } = req.body;
+
+  if (!initialPitch) {
+    return res.status(400).json({ error: 'initialPitch is required' });
+  }
+
+  // Set headers for SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+
+  const sendEvent = (event: string, data: any) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const graph = compileThesisGraph();
+    
+    // We run it iteratively to capture state transitions for SSE
+    const stream = await graph.stream(
+      { 
+        initialPitch,
+        messages: [new HumanMessage(initialPitch)]
+      },
+      { configurable: { thread_id: threadId } }
+    );
+
+    for await (const chunk of stream) {
+      // chunk is an object with the node name as the key, e.g., { supervisor: { ... } }
+      const nodeName = Object.keys(chunk)[0];
+      const stateUpdate = chunk[nodeName];
+      
+      sendEvent('node_update', {
+        node: nodeName,
+        message: `Agent ${nodeName} completed its task.`,
+        stateSnapshot: stateUpdate
+      });
+
+      if (nodeName === 'chair') {
+        sendEvent('complete', {
+          healthStatus: stateUpdate.healthStatus,
+          healthCardReport: JSON.stringify(stateUpdate.defenseCritique)
+        });
+      }
+    }
+
+    res.end();
+  } catch (error: any) {
+    console.error('Thesis Validation Error:', error);
+    sendEvent('error', { message: error.message });
+    res.end();
+  }
+});
+
 // ── Multer error handler ──
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof multer.MulterError) {
