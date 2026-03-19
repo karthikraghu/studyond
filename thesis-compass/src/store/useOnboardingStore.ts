@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { type PartialOnboardingData } from "../types/onboarding";
-import { type StudentProfile } from "../types/profile";
+import { type StudentProfile, type GitHubStats } from "../types/profile";
 
 // ----------------------------------------------------------------------
 // 1. Defininig the Shape of our Store 
@@ -20,7 +20,7 @@ interface OnboardingStore {
   studentProfile: StudentProfile | null; // Full profile from CV extraction
 
   // --- GitHub state ---
-  githubStats: any | null;
+  githubStats: GitHubStats | null;
   isFetchingGithub: boolean;
 
   // --- Actions ---
@@ -38,6 +38,9 @@ interface OnboardingStore {
   
   // Store the full StudentProfile from CV extraction
   setStudentProfile: (profile: StudentProfile) => void;
+  
+  // Merge GitHub stats into the student profile
+  mergeGithubIntoProfile: () => void;
   
   // Confirms the wizard is entirely finished
   completeOnboarding: () => void;
@@ -73,6 +76,16 @@ export const useOnboardingStore = create<OnboardingStore>()(
         })),
       
       setStudentProfile: (profile) => set({ studentProfile: profile }),
+      
+      mergeGithubIntoProfile: () => set((state) => {
+        if (!state.studentProfile || !state.githubStats) return state;
+        return {
+          studentProfile: {
+            ...state.studentProfile,
+            github: state.githubStats,
+          },
+        };
+      }),
 
       completeOnboarding: () => set({ isOnboarded: true }),
 
