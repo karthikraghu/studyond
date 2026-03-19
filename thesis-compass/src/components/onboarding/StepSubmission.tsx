@@ -1,21 +1,30 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2, Database, User, Building2, Code2, Github, GraduationCap, Mail } from "lucide-react";
 import { useOnboardingStore } from "../../store/useOnboardingStore";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 
 export function StepSubmission() {
-  const { formData, prevStep, nextStep } = useOnboardingStore();
+  const navigate = useNavigate();
+  const { formData, prevStep, nextStep, completeOnboarding } = useOnboardingStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFinalSubmit = () => {
     setIsSubmitting(true);
     
-    // Simulating save then advancing to topic inquiry
     setTimeout(() => {
       console.log("🚀 PAYLOAD SAVED:", JSON.stringify(formData, null, 2));
       setIsSubmitting(false);
-      nextStep();
+      
+      // Only students go to the topic inquiry step
+      if (formData.role === "student") {
+        nextStep();
+      } else {
+        // Companies and Supervisors are finished after the review
+        completeOnboarding();
+        navigate("/home");
+      }
     }, 800);
   };
   return (
