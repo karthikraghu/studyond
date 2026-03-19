@@ -254,9 +254,44 @@ function fieldOverlap(fields1: string[], fields2: string[]): number {
 }
 
 /**
+ * Calculate GitHub-based bonus score for a topic.
+ * Looks for overlap between GitHub languages/topics and topic description/title.
+ */
+function calculateGitHubBonus(profile: StudentProfile, topic: Topic): number {
+  if (!profile.github) return 0;
+  
+  const topicText = `${topic.title} ${topic.description || ''}`.toLowerCase();
+  let bonus = 0;
+  
+  // Check if any of the student's top GitHub languages appear in the topic
+  const topLanguages = Object.entries(profile.github.languageStats)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([lang]) => lang.toLowerCase());
+  
+  const langMatches = topLanguages.filter(lang => topicText.includes(lang)).length;
+  bonus += langMatches * 0.05; // 5% bonus per matching language (up to 25%)
+  
+  // Check if any GitHub topics overlap with the topic content
+  const topicMatches = profile.github.topics.filter(ghTopic => {
+    const normalized = ghTopic.toLowerCase().replace(/-/g, ' ');
+    return topicText.includes(normalized) || topicText.includes(ghTopic.toLowerCase());
+  }).length;
+  bonus += Math.min(topicMatches * 0.04, 0.2); // 4% bonus per topic match (capped at 20%)
+  
+  // Small bonus for active GitHub presence (commit activity)
+  if (profile.github.totalCommitsYear > 100) {
+    bonus += 0.05; // 5% bonus for active contributor
+  }
+  
+  return Math.min(bonus, 0.3); // Cap total GitHub bonus at 30%
+}
+
+/**
  * Golden Triangle Matching — Find best (Topic, Supervisor, Company) combinations
  * 
  * Uses semantic vector search combined with field overlap and degree matching.
+ * Enhanced with GitHub profile data when available.
  */
 export async function matchGoldenTriangle(
   profile: StudentProfile,
@@ -269,13 +304,28 @@ export async function matchGoldenTriangle(
 ): Promise<GoldenTriangleMatch[]> {
   const vectorStore = getVectorStore();
   
-  // Build profile text for semantic search
-  const profileText = [
+  // Build profile text for semantic search (enhanced with GitHub data)
+  const profileParts = [
     profile.skills.join(' '),
     profile.fieldIds.map(fid => fields.find(f => f.id === fid)?.name || '').join(' '),
     profile.about || '',
     profile.semanticTags?.join(' ') || ''
-  ].join(' ');
+  ];
+  
+  // Add GitHub-derived data if available
+  if (profile.github) {
+    // Add top programming languages
+    const topLanguages = Object.entries(profile.github.languageStats)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([lang]) => lang);
+    profileParts.push(topLanguages.join(' '));
+    
+    // Add GitHub topics (e.g., "machine-learning", "react", "data-science")
+    profileParts.push(profile.github.topics.join(' '));
+  }
+  
+  const profileText = profileParts.join(' ');
 
   // Search for similar topics
   let topicResults: VectorSearchResult[] = [];
@@ -295,14 +345,19 @@ export async function matchGoldenTriangle(
     }));
   }
 
-  // Score each topic
+  // Score each topic (enhanced with GitHub bonus)
   const scoredTopics = topicResults.map(r => {
     const topic = (r.metadata as unknown) as Topic;
     const vectorScore = r.score;
     const fieldScore = fieldOverlap(profile.fieldIds, topic.fieldIds || []);
     const degreeMatch = topic.degrees?.includes(profile.degree) ? 1 : 0;
-    const combinedScore = 0.5 * vectorScore + 0.3 * fieldScore + 0.2 * degreeMatch;
-    return { topic, vectorScore, fieldScore, degreeMatch, combinedScore };
+    const githubBonus = calculateGitHubBonus(profile, topic);
+    
+    // Base combined score + GitHub bonus
+    const baseScore = 0.5 * vectorScore + 0.3 * fieldScore + 0.2 * degreeMatch;
+    const combinedScore = Math.min(1, baseScore + githubBonus);
+    
+    return { topic, vectorScore, fieldScore, degreeMatch, githubBonus, combinedScore };
   });
   scoredTopics.sort((a, b) => b.combinedScore - a.combinedScore);
 
@@ -476,6 +531,31 @@ function generateMatchExplanation(
   if (topic.employment === 'yes' || topic.employment === 'open') {
     const empType = topic.employmentType || 'position';
     explanation += `💼 **Career opportunity:** This topic ${topic.employment === 'yes' ? 'includes' : 'may lead to'} a ${empType} role.\n\n`;
+  }
+
+  // GitHub insights (if available)
+  if (profile.github) {
+    const topicText = `${topic.title} ${topic.description || ''}`.toLowerCase();
+    const topLanguages = Object.entries(profile.github.languageStats)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([lang]) => lang);
+    
+    const matchingLangs = topLanguages.filter(lang => topicText.includes(lang.toLowerCase()));
+    const matchingTopics = profile.github.topics
+      .filter(t => topicText.includes(t.toLowerCase().replace(/-/g, ' ')))
+      .slice(0, 3);
+    
+    if (matchingLangs.length > 0 || matchingTopics.length > 0) {
+      explanation += `🐙 **GitHub profile boost:** `;
+      if (matchingLangs.length > 0) {
+        explanation += `Your ${matchingLangs.join(', ')} experience is relevant. `;
+      }
+      if (matchingTopics.length > 0) {
+        explanation += `Your work on ${matchingTopics.join(', ')} aligns with this topic.`;
+      }
+      explanation += '\n\n';
+    }
   }
 
   // Triangle score

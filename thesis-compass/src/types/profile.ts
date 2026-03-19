@@ -9,6 +9,19 @@ import type {
 } from './matching';
 
 /**
+ * GitHubStats — Data fetched from GitHub API for a user
+ */
+export interface GitHubStats {
+  username: string;
+  /** Language usage distribution (bytes of code per language) */
+  languageStats: Record<string, number>;
+  /** Repository topics/tags (e.g., "machine-learning", "react") */
+  topics: string[];
+  /** Estimated annual commit count */
+  totalCommitsYear: number;
+}
+
+/**
  * StudentProfile — Extracted from CV/bio text
  * Compatible with the Student interface but includes additional semantic analysis
  */
@@ -29,6 +42,8 @@ export interface StudentProfile {
   fieldIds: string[];
   /** Inferred domain expertise tags (e.g., "ml-sustainability", "nlp-specialist") */
   semanticTags: string[];
+  /** GitHub profile data (optional, fetched separately from CV) */
+  github?: GitHubStats;
 }
 
 /**

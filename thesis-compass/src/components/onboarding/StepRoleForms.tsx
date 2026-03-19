@@ -26,7 +26,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 // 1. The Student Form
 // ----------------------------------------------------------------------
 function StudentForm() {
-  const { formData, updateData, nextStep, prevStep, setStudentProfile } = useOnboardingStore();
+  const { formData, updateData, nextStep, prevStep, setStudentProfile, githubStats, mergeGithubIntoProfile } = useOnboardingStore();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -47,6 +47,10 @@ function StudentForm() {
 
   const onSubmit = (data: z.infer<typeof StudentSchema>) => {
     updateData(data);
+    // Merge any fetched GitHub stats into the student profile before proceeding
+    if (githubStats) {
+      mergeGithubIntoProfile();
+    }
     nextStep();
   };
 
