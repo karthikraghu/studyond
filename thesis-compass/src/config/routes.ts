@@ -20,7 +20,7 @@ import { lazy } from 'react';
 
 // Lazy-load pages for code splitting
 // (Only loaded when the user navigates to that route)
-const SignInPage = lazy(() => import('@/pages/auth/SignInPage'));
+const OnboardingPage = lazy(() => import('@/pages/onboarding/OnboardingPage'));
 const HomePage = lazy(() => import('@/pages/home/HomePage'));
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
@@ -49,8 +49,8 @@ export const routes: RouteConfig[] = [
   // -- Auth routes (no sidebar, full-screen) --
   {
     path: '/',
-    layout: 'auth',
-    component: SignInPage,
+    layout: 'none',
+    component: OnboardingPage,
   },
 
   // -- App routes (sidebar + topbar) --
