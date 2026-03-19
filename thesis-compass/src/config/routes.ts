@@ -24,6 +24,8 @@ const OnboardingPage = lazy(() => import('@/pages/onboarding/OnboardingPage'));
 const HomePage = lazy(() => import('@/pages/home/HomePage'));
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
+const ValidateTopicPage = lazy(() => import('@/pages/validate/ValidateTopicPage'));
+const PreferencesPage = lazy(() => import('@/pages/preferences/PreferencesPage'));
 
 export interface RouteConfig {
   path: string;
@@ -70,6 +72,18 @@ export const routes: RouteConfig[] = [
     path: '/settings',
     layout: 'app',
     component: SettingsPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/validate-topic',
+    layout: 'app',
+    component: ValidateTopicPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/preferences',
+    layout: 'app',
+    component: PreferencesPage,
     requiresAuth: true,
   },
 

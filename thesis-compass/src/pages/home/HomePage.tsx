@@ -16,14 +16,14 @@ import { motion } from 'framer-motion';
 import {
   Sparkles,
   Users,
-  Search,
-  SquarePen,
   PlayCircle,
-  Bookmark,
   Briefcase,
-  GraduationCap
+  GraduationCap,
+  BrainCircuit,
+  Settings2,
+  ArrowRight
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 
 // -- Time-aware greeting logic --
@@ -49,10 +49,11 @@ function getGreeting(): { text: string; emoji: string } {
 interface ActionCard {
   icon: typeof Sparkles;
   title: string;
-  /** Highlighted portion of the title (e.g., "AI" in "Let AI Find Your Perfect Topic") */
   highlight?: string;
   description: string;
   path: string;
+  className?: string;
+  iconClassName?: string;
 }
 
 function getActionCards(role: "student" | "company" | "supervisor" | undefined): ActionCard[] {
@@ -61,34 +62,41 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
     return [
       {
         icon: Sparkles,
-        title: 'Let AI Find Your Perfect Topic',
-        highlight: 'AI',
-        description: 'Get personalized topic suggestions based on your skills and interests.',
+        title: 'Find relevant roles for your profile',
+        highlight: 'relevant roles',
+        description: 'Match your background with specific industry and research positions. We utilize your GitHub and academic profile to find the best fit.',
         path: '/chat',
+        className: 'md:col-span-4 md:row-span-2 p-8',
+        iconClassName: 'w-8 h-8 text-blue-500 mb-2',
+      },
+      {
+        icon: BrainCircuit,
+        title: 'Validate Thesis Topic',
+        highlight: 'Validate',
+        description: 'AI-driven reasoning on your ideas.',
+        path: '/validate-topic',
+        className: 'md:col-span-2',
+      },
+      {
+        icon: Settings2,
+        title: 'Set Preferences',
+        description: 'Rank your field of study priorities.',
+        path: '/preferences',
+        className: 'md:col-span-2',
       },
       {
         icon: Users,
-        title: 'Find Experts for Interviews',
-        description: 'Connect with industry professionals for expert interviews and insights.',
+        title: 'Find Experts',
+        description: 'Connect with industry mentors.',
         path: '/people',
-      },
-      {
-        icon: Search,
-        title: 'Discover Topics for Your Thesis',
-        description: 'Find thesis topics from university institutes and industry experts.',
-        path: '/topics',
-      },
-      {
-        icon: SquarePen,
-        title: 'Propose Your Own Topic',
-        description: 'Find industry partners open for your topic proposal.',
-        path: '/topics',
+        className: 'md:col-span-2',
       },
       {
         icon: PlayCircle,
-        title: 'Videos: Thesis Writing 101',
-        description: 'Learn how to write a thesis in the social sciences from experienced PhDs.',
+        title: 'ThesisWriting 101',
+        description: 'Learn from PhDs.',
         path: '/resources',
+        className: 'md:col-span-2',
       },
     ];
   }
@@ -156,9 +164,9 @@ export default function HomePage() {
         {greeting.text}, {userName}? {greeting.emoji}
       </motion.h1>
 
-      {/* ── Action Cards ── */}
+      {/* ── Dashboard Action Grid ── */}
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-8"
+        className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-8 auto-rows-min"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.08 }}
@@ -167,28 +175,37 @@ export default function HomePage() {
           <motion.button
             key={i}
             onClick={() => navigate(card.path)}
-            className="group flex flex-col items-start gap-3 p-4 rounded-xl border border-border bg-background text-left hover:shadow-md hover:border-border/80 transition-all duration-200 cursor-pointer"
-            whileHover={{ y: -2 }}
-            transition={{ duration: 0.15 }}
+            className={cn(
+              "group relative flex flex-col items-start gap-3 p-5 rounded-2xl border border-border bg-background text-left hover:shadow-xl hover:border-primary/20 hover:bg-primary/[0.02] transition-all duration-300 overflow-hidden",
+              card.className
+            )}
+            whileHover={{ y: -4 }}
           >
+            {/* Soft background glow for the main card */}
+            {card.highlight === 'relevant roles' && (
+              <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
+            )}
+
             {/* Icon */}
             <card.icon
-              className={`w-5 h-5 ${
-                card.highlight === 'AI'
-                  ? 'text-blue-500'
-                  : 'text-muted-foreground'
-              }`}
-              strokeWidth={1.75}
+              className={cn(
+                "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
+                card.iconClassName || "text-muted-foreground"
+              )}
+              strokeWidth={2}
             />
 
-            {/* Title — with optional highlight */}
-            <p className="text-[13px] font-semibold text-foreground leading-snug">
+            {/* Title */}
+            <p className={cn(
+              "font-bold text-foreground leading-snug",
+              card.highlight === 'relevant roles' ? "text-xl md:text-2xl" : "text-[14px]"
+            )}>
               {card.highlight ? (
                 <>
                   {card.title.split(card.highlight).map((part, j) => (
                     <span key={j}>
                       {j > 0 && (
-                        <span className="text-ai">{card.highlight}</span>
+                        <span className="text-primary">{card.highlight}</span>
                       )}
                       {part}
                     </span>
@@ -200,35 +217,21 @@ export default function HomePage() {
             </p>
 
             {/* Description */}
-            <p className="text-[12px] text-muted-foreground leading-relaxed">
+            <p className={cn(
+              "text-muted-foreground leading-relaxed",
+              card.highlight === 'relevant roles' ? "text-sm md:text-base opacity-90" : "text-[12px] opacity-70"
+            )}>
               {card.description}
             </p>
+            
+            {/* Action text for main card */}
+            {card.highlight === 'relevant roles' && (
+              <div className="mt-auto pt-6 flex items-center gap-2 text-primary font-bold text-sm">
+                Open Profiles <ArrowRight className="w-4 h-4" />
+              </div>
+            )}
           </motion.button>
         ))}
-      </motion.div>
-
-      {/* ── My favorite topics ── */}
-      <motion.div
-        className="mt-10"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.15 }}
-      >
-        <h2 className="text-base font-semibold text-foreground tracking-tight">
-          My favorite topics
-        </h2>
-
-        {/* Empty state */}
-        <div className="mt-4 flex flex-col items-center justify-center py-10 border border-border rounded-xl bg-background">
-          <Bookmark className="w-6 h-6 text-muted-foreground/40 mb-3" strokeWidth={1.75} />
-          <p className="text-[13px] text-muted-foreground mb-4">No items</p>
-          <Button
-            onClick={() => navigate('/topics')}
-            className="rounded-full px-5 h-9 text-[13px] font-medium bg-foreground text-background hover:bg-foreground/90"
-          >
-            Explore all topics
-          </Button>
-        </div>
       </motion.div>
     </div>
   );
