@@ -47,47 +47,88 @@ function StudentForm() {
     nextStep();
   };
 
-  // Mock CV Extraction flow
-  const handleSimulateCVUpload = () => {
+  // ----------------------------------------------------------------------
+  // HANDOFF CONTEXT FOR TEAMMATE (Backend / AI parsing integration)
+  // ----------------------------------------------------------------------
+  // 1. You receive the `File` object from the standard HTML input below.
+  // 2. You will likely create a FormData object:
+  //    const formData = new FormData();
+  //    formData.append("cv", file);
+  // 3. Send to your endpoint (e.g. FastAPI / Python backend) using fetch/axios.
+  // 4. Await the JSON response containing the extracted structured data.
+  // 5. Use `form.setValue(key, response.value)` to auto-fill the React Hook Form.
+  // 6. Call `form.trigger()` instantly so the UI removes validation error warnings.
+  const handleActualCVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     setIsUploading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      // Auto-fill form fields
-      form.setValue("fullName", mockExtractedCVData.fullName);
-      form.setValue("email", mockExtractedCVData.email);
-      form.setValue("university", mockExtractedCVData.university);
-      form.setValue("degreeProgram", mockExtractedCVData.degreeProgram);
-      form.setValue("techStack", mockExtractedCVData.techStack);
+
+    try {
+      // TODO (Teammate): Insert your actual fetch/axios call to the AI parser here:
+      // const response = await uploadFileToPythonParser(file);
+      // const aiExtractedData = response.data;
+
+      // ----------------------------------------------------------------------
+      // [TEMPORARY MOCK FOR HACKATHON DEMO UNTIL BACKEND IS READY] 
+      // We simulate a 2-second backend delay, then auto-fill data using our mock.
+      // ----------------------------------------------------------------------
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const aiExtractedData = mockExtractedCVData;
+
+      // Updating the form fields with extracted data
+      form.setValue("fullName", aiExtractedData.fullName);
+      form.setValue("email", aiExtractedData.email);
+      form.setValue("university", aiExtractedData.university);
+      form.setValue("degreeProgram", aiExtractedData.degreeProgram);
+      form.setValue("techStack", aiExtractedData.techStack);
       
-      setIsUploading(false);
-      // Trigger RHF to revalidate after setting values
+      // Trigger RHF to revalidate after setting values programmatically
       form.trigger();
-    }, 2000);
+    } catch (error) {
+      console.error("CV Upload failed:", error);
+      // TODO: Add toast notification for failed uploads
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Mock AI Feature */}
+      {/* AI Resume Feature - Live File Input */}
       <div className="p-6 bg-primary/5 border border-primary/20 rounded-xl relative overflow-hidden flex flex-col items-center text-center space-y-4">
         <Upload className="w-8 h-8 text-primary/80" />
         <div>
           <h3 className="font-semibold text-lg">AI Resume Extraction</h3>
           <p className="text-sm text-muted-foreground mt-1 px-4">
-            Upload your CV and let our localized AI pre-fill everything in seconds.
+            Upload your CV (PDF/Word) and let our AI pre-fill everything in seconds.
           </p>
         </div>
-        <Button 
-          type="button" 
-          variant="secondary" 
-          onClick={handleSimulateCVUpload} 
-          disabled={isUploading}
-        >
-          {isUploading ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extracting Concepts...</>
-          ) : (
-            "Simulate Upload"
-          )}
-        </Button>
+        
+        {/* Hidden File Input activated via a styled Label wrapper acting as a Button */}
+        <div className="relative">
+          <input
+            type="file"
+            id="cv-upload"
+            className="hidden"
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={handleActualCVUpload}
+            disabled={isUploading}
+          />
+          <Button 
+            asChild
+            variant="secondary" 
+            disabled={isUploading}
+          >
+            <label htmlFor="cv-upload" className="cursor-pointer">
+              {isUploading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extracting Concepts...</>
+              ) : (
+                "Upload Resume"
+              )}
+            </label>
+          </Button>
+        </div>
       </div>
 
       <Form {...form}>
