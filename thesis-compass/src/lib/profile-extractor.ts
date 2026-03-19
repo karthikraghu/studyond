@@ -67,6 +67,126 @@ const FIELD_INFERENCE: Record<string, string> = {
   'innovation': 'field-04',
 };
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join('\n')
+    .trim();
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+function buildOtherInformation(
+  rawText: string,
+  extracted: {
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    degree: 'bsc' | 'msc' | 'phd';
+    universityName: string | null;
+    skills: string[];
+    fieldIds: string[];
+    objectives: StudentProfile['objectives'];
+    studyProgramId: string | null;
+  },
+): string | null {
+  const degreeTokens: Record<StudentProfile['degree'], string[]> = {
+    bsc: ['bachelor', 'b.sc', 'bsc', 'undergraduate'],
+    msc: ['master', 'm.sc', 'msc', 'graduate'],
+    phd: ['phd', 'ph.d', 'doctoral', 'doctorate'],
+  };
+
+  const lowerEmail = extracted.email?.toLowerCase() || '';
+  const lowerFullName = `${extracted.firstName} ${extracted.lastName}`.trim().toLowerCase();
+  const lowerUniversity = extracted.universityName?.toLowerCase() || '';
+
+  const prefilteredLines = rawText
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((line) => {
+      const lowered = line.toLowerCase();
+      if (lowerEmail && lowered.includes(lowerEmail)) return false;
+      if (lowerFullName && lowered.includes(lowerFullName)) return false;
+      if (lowerUniversity && lowered.includes(lowerUniversity)) return false;
+      if (degreeTokens[extracted.degree].some((token) => lowered.includes(token))) return false;
+      return true;
+    });
+
+  let remainder = prefilteredLines.join('\n');
+
+  const removableTokens = new Set<string>();
+
+  const fullName = `${extracted.firstName} ${extracted.lastName}`.trim();
+  if (fullName.length > 1) removableTokens.add(fullName);
+  if (extracted.firstName.length > 1) removableTokens.add(extracted.firstName);
+  if (extracted.lastName.length > 1) removableTokens.add(extracted.lastName);
+  if (extracted.email) removableTokens.add(extracted.email);
+  if (extracted.universityName) removableTokens.add(extracted.universityName);
+
+  extracted.skills.forEach((skill) => {
+    if (skill.length > 1) removableTokens.add(skill);
+  });
+
+  fields
+    .filter((field) => extracted.fieldIds.includes(field.id))
+    .forEach((field) => {
+      removableTokens.add(field.name);
+    });
+
+  if (extracted.studyProgramId) {
+    const program = studyPrograms.find((entry) => entry.id === extracted.studyProgramId);
+    if (program) removableTokens.add(program.name);
+  }
+
+  const objectiveKeywords: Record<StudentProfile['objectives'][number], string[]> = {
+    topic: ['thesis topic', 'topic', 'thesis'],
+    supervision: ['supervisor', 'professor', 'supervision'],
+    career_start: ['career', 'position', 'job'],
+    industry_access: ['industry', 'company', 'partner'],
+    project_guidance: ['guidance', 'mentor'],
+  };
+
+  extracted.objectives.forEach((objective) => {
+    objectiveKeywords[objective].forEach((token) => removableTokens.add(token));
+  });
+
+  Object.entries(FIELD_INFERENCE).forEach(([keyword, fieldId]) => {
+    if (extracted.fieldIds.includes(fieldId)) {
+      removableTokens.add(keyword);
+    }
+  });
+
+  degreeTokens[extracted.degree].forEach((token) => removableTokens.add(token));
+
+  removableTokens.forEach((token) => {
+    const escaped = escapeRegExp(token.trim());
+    if (!escaped) return;
+    const pattern = new RegExp(`\\b${escaped}\\b`, 'gi');
+    remainder = remainder.replace(pattern, ' ');
+  });
+
+  const cleaned = remainder
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 2)
+    .filter((line) => /[A-Za-z0-9]{3,}/.test(line))
+    .filter((line) => /[A-Za-z]/.test(line))
+    .join('\n')
+    .trim();
+
+  return normalizeOptionalText(cleaned);
+}
+
 /**
  * Extract profile using heuristics (fallback when no LLM available)
  */
@@ -179,6 +299,18 @@ export function extractProfileHeuristic(rawText: string): StudentProfile {
     .map(fid => fields.find(f => f.id === fid)?.name || fid)
     .join(', ');
   const about = `${firstName} ${lastName} — ${degree.toUpperCase()} student. Skills: ${skills.slice(0, 5).join(', ')}. Interests: ${fieldNames}.`;
+  const dedupedFieldIds = [...new Set(matchedFieldIds)].slice(0, 5);
+  const otherInformation = buildOtherInformation(rawText, {
+    firstName,
+    lastName,
+    email,
+    degree,
+    universityName,
+    skills: [...new Set(skills)],
+    fieldIds: dedupedFieldIds,
+    objectives,
+    studyProgramId,
+  });
 
   return {
     id: `student-${firstName.toLowerCase()}-${lastName.toLowerCase().replace(/\s+/g, '')}`,
@@ -192,8 +324,9 @@ export function extractProfileHeuristic(rawText: string): StudentProfile {
     skills: [...new Set(skills)],
     about,
     objectives,
-    fieldIds: [...new Set(matchedFieldIds)].slice(0, 5),
+    fieldIds: dedupedFieldIds,
     semanticTags,
+    otherInformation,
   };
 }
 
@@ -227,6 +360,7 @@ Type definitions for Student:
   objectives: ("topic" | "supervision" | "career_start" | "industry_access" | "project_guidance")[];
   fieldIds: string[];            // Use exact IDs from the fields list
   semanticTags: string[];        // Inferred tags like "ml-sustainability", "nlp-specialist"
+  otherInformation: string | null; // All relevant CV details not represented in the fields above
 }
 
 Available fields:
@@ -261,8 +395,9 @@ RULES:
 5. Match studyProgramId from available lists if the program name is mentioned
 6. Infer student objectives from context (career goals, interests, what they're looking for)
 7. Generate semantic tags based on domain expertise combinations
-8. For fields you truly cannot determine, use null. But ALWAYS try to extract universityName!
-9. Return ONLY the JSON object, no markdown code blocks, no explanation`;
+8. Put every meaningful CV detail that is NOT already represented in other structured fields into otherInformation.
+9. For fields you truly cannot determine, use null. But ALWAYS try to extract universityName!
+10. Return ONLY the JSON object, no markdown code blocks, no explanation`;
 
   try {
     const response = await anthropic.messages.create({
@@ -303,6 +438,18 @@ RULES:
     profile.fieldIds = profile.fieldIds || [];
     profile.semanticTags = profile.semanticTags || [];
     profile.universityName = profile.universityName || null;
+    const fallbackOtherInformation = buildOtherInformation(rawText, {
+      firstName: profile.firstName || 'Unknown',
+      lastName: profile.lastName || '',
+      email: profile.email || null,
+      degree: profile.degree || 'msc',
+      universityName: profile.universityName,
+      skills: profile.skills,
+      fieldIds: profile.fieldIds,
+      objectives: profile.objectives,
+      studyProgramId: profile.studyProgramId,
+    });
+    profile.otherInformation = normalizeOptionalText(profile.otherInformation) || fallbackOtherInformation;
 
     return profile;
   } catch (err) {

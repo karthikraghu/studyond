@@ -42,6 +42,8 @@ export interface StudentProfile {
   fieldIds: string[];
   /** Inferred domain expertise tags (e.g., "ml-sustainability", "nlp-specialist") */
   semanticTags: string[];
+  /** CV details not captured by structured fields */
+  otherInformation: string | null;
   /** GitHub profile data (optional, fetched separately from CV) */
   github?: GitHubStats;
   /** Ordered list of preference IDs (from the Preferences page) */

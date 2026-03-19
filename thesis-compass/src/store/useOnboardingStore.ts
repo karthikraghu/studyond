@@ -152,6 +152,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           objectives: existing?.objectives || ['topic'],
           fieldIds: existing?.fieldIds || [],
           semanticTags: existing?.semanticTags || [],
+          otherInformation: existing?.otherInformation || null,
           github: state.githubStats || undefined,
           priorities: data.priorities || []
         };

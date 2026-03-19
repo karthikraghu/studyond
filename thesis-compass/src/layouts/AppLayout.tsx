@@ -154,7 +154,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 {email}
               </p>
             </div>
-            <Settings className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" strokeWidth={1.75} />
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              aria-label="Open profile settings"
+              className="p-1 rounded-md hover:bg-muted/50 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" strokeWidth={1.75} />
+            </button>
           </div>
         </div>
       </aside>
