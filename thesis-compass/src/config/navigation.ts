@@ -68,7 +68,7 @@ export const studentNavigation: NavSection[] = [
       { icon: Target, label: 'Matches', path: '/matches' },
       { icon: Sparkles, label: 'Topics', path: '/topics' },
       { icon: Briefcase, label: 'Jobs', path: '/jobs' },
-      { icon: Users, label: 'People', path: '/people', expandable: true },
+      { icon: Users, label: 'Experts', path: '/experts' },
       { icon: Building2, label: 'Organizations', path: '/organizations', expandable: true },
     ],
   },

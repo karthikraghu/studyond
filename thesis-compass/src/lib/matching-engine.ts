@@ -66,16 +66,41 @@ export function scoreTopicMatch(
   const degreeMatch = scoreDegreeMatch(student.degree || 'msc', topic.degrees);
   const careerAlignment = scoreCareerAlignment(student.objectives || [], topic);
   const industryDemand = scoreIndustryDemand(topic, companies);
+  
+  // Description alignment for matching existing topics
+  const descriptionAlignment = scoreDescriptionAlignment(student.about || "", topic.title, topic.description);
 
   const overall = Math.round(
-    fieldAlignment * 0.30 +
-    skillFit * 0.25 +
-    degreeMatch * 0.15 +
-    careerAlignment * 0.15 +
-    industryDemand * 0.15
+    fieldAlignment * 0.25 +
+    skillFit * 0.20 +
+    degreeMatch * 0.10 +
+    careerAlignment * 0.10 +
+    industryDemand * 0.10 +
+    descriptionAlignment * 0.25
   );
 
   return { overall, fieldAlignment, skillFit, degreeMatch, careerAlignment, industryDemand };
+}
+
+/**
+ * Poor man's semantic search: check for keyword overlap between the student's topic 
+ * and the platform topic.
+ */
+function scoreDescriptionAlignment(studentAbout: string, topicTitle: string, topicDescription: string): number {
+  if (!studentAbout || studentAbout.length < 10) return 50;
+  
+  const studentWords = new Set(studentAbout.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
+  const topicWords = new Set(`${topicTitle} ${topicDescription}`.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3));
+  
+  if (studentWords.size === 0) return 50;
+
+  let matches = 0;
+  studentWords.forEach(word => {
+    if (topicWords.has(word)) matches++;
+  });
+
+  const overlap = (matches / Math.sqrt(studentWords.size * topicWords.size));
+  return Math.min(100, 40 + Math.round(overlap * 120)); // Base 40 + boost
 }
 
 function scoreFieldAlignment(studentFieldIds: string[], topicFieldIds: string[], _fields: Field[]): number {
@@ -155,7 +180,7 @@ export function findTopMatches(
  */
 export function findMatchingSupervisors(
   topicFieldIds: string[],
-  topicTitle: string,
+  _topicTitle: string,
   supervisors: Supervisor[],
   topN: number = 5
 ): SupervisorMatch[] {

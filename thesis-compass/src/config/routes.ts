@@ -28,6 +28,8 @@ const ValidateTopicPage = lazy(() => import('@/pages/validate/ValidateTopicPage'
 const PreferencesPage = lazy(() => import('@/pages/preferences/PreferencesPage'));
 const MatchPage = lazy(() => import('@/pages/matches/MatchPage'));
 const ActivityPage = lazy(() => import('@/pages/activity/ActivityPage'));
+const ExpertsPage = lazy(() => import('@/pages/experts/ExpertsPage'));
+const TopicsPage = lazy(() => import('@/pages/topics/TopicsPage'));
 
 
 export interface RouteConfig {
@@ -103,7 +105,18 @@ export const routes: RouteConfig[] = [
   },
 
   // Future routes — just add entries here:
-  // { path: '/topics', layout: 'app', component: TopicsPage, requiresAuth: true },
+  {
+    path: '/experts',
+    layout: 'app',
+    component: ExpertsPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/topics',
+    layout: 'app',
+    component: TopicsPage,
+    requiresAuth: true,
+  },
   // { path: '/messages', layout: 'app', component: MessagesPage, requiresAuth: true },
   // { path: '/projects', layout: 'app', component: ProjectsPage, requiresAuth: true },
   // { path: '/onboarding', layout: 'none', component: OnboardingPage, requiresAuth: true },
