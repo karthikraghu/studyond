@@ -88,7 +88,7 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
         icon: Users,
         title: 'Find Experts',
         description: 'Connect with industry mentors.',
-        path: '/people',
+        path: '/experts',
         className: 'md:col-span-2',
       },
       {
