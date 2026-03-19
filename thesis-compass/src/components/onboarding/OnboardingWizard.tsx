@@ -9,6 +9,8 @@ import { StepTopicInquiry } from "./StepTopicInquiry";
 
 export function OnboardingWizard() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
+  const formData = useOnboardingStore((state) => state.formData);
+  const isStudent = formData.role === "student";
 
   // We use Framer Motion's AnimatePresence to animate components entering 
   // and leaving the DOM. It requires the child to have a unique `key`.
@@ -17,14 +19,18 @@ export function OnboardingWizard() {
       <div className="w-full max-w-3xl border rounded-xl bg-background shadow-lg overflow-hidden flex flex-col min-h-[500px]">
         {/* Simple Progress Indicator */}
         <div className="border-b p-4 bg-muted/20">
-          <div className="flex items-center justify-between text-sm font-medium text-muted-foreground w-1/2 mx-auto">
+          <div className={`flex items-center justify-between text-sm font-medium text-muted-foreground ${isStudent ? "w-2/3 max-w-sm" : "w-1/2 max-w-xs"} mx-auto`}>
             <span className={currentStep >= 1 ? "text-primary font-bold" : ""}>1. Role</span>
-            <div className={`h-[2px] w-8 ${currentStep >= 2 ? "bg-primary" : "bg-border"} transition-colors`} />
+            <div className={`h-[2px] ${isStudent ? "w-6" : "w-8"} ${currentStep >= 2 ? "bg-primary" : "bg-border"} transition-colors`} />
             <span className={currentStep >= 2 ? "text-primary font-bold" : ""}>2. Details</span>
-            <div className={`h-[2px] w-8 ${currentStep >= 3 ? "bg-primary" : "bg-border"} transition-colors`} />
+            <div className={`h-[2px] ${isStudent ? "w-6" : "w-8"} ${currentStep >= 3 ? "bg-primary" : "bg-border"} transition-colors`} />
             <span className={currentStep >= 3 ? "text-primary font-bold" : ""}>3. Review</span>
-            <div className={`h-[2px] w-8 ${currentStep >= 4 ? "bg-primary" : "bg-border"} transition-colors`} />
-            <span className={currentStep >= 4 ? "text-primary font-bold" : ""}>4. Status</span>
+            {isStudent && (
+              <>
+                <div className={`h-[2px] w-6 ${currentStep >= 4 ? "bg-primary" : "bg-border"} transition-colors`} />
+                <span className={currentStep >= 4 ? "text-primary font-bold" : ""}>4. Status</span>
+              </>
+            )}
           </div>
         </div>
 
