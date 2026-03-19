@@ -27,6 +27,8 @@ const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const ValidateTopicPage = lazy(() => import('@/pages/validate/ValidateTopicPage'));
 const PreferencesPage = lazy(() => import('@/pages/preferences/PreferencesPage'));
 const MatchPage = lazy(() => import('@/pages/matches/MatchPage'));
+const ActivityPage = lazy(() => import('@/pages/activity/ActivityPage'));
+
 
 export interface RouteConfig {
   path: string;
@@ -91,6 +93,12 @@ export const routes: RouteConfig[] = [
     path: '/matches',
     layout: 'app',
     component: MatchPage,
+    requiresAuth: true,
+  },
+  {
+    path: '/activity',
+    layout: 'app',
+    component: ActivityPage,
     requiresAuth: true,
   },
 

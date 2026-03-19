@@ -48,7 +48,7 @@ function findOtherSupervisors(topicFieldIds: string[], currentSupId: string, all
  */
 export default function MatchPage() {
   const navigate = useNavigate();
-  const { studentProfile, trackApplication, applications } = useOnboardingStore();
+  const { studentProfile, trackApplication } = useOnboardingStore();
   const [matches, setMatches] = useState<GoldenTriangleMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<GoldenTriangleMatch | null>(null);
@@ -270,61 +270,25 @@ export default function MatchPage() {
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  {/* Activity Feed Header */}
-                  <div className="flex items-center justify-between px-2">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Recent Activity</h3>
-                    <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px]">{applications.length} Proposals</Badge>
-                  </div>
-
-                  {applications.length === 0 ? (
-                    <div className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center gap-4 min-h-[300px]">
-                      <Target className="w-12 h-12 text-muted-foreground/20" />
-                      <p className="text-muted-foreground text-sm max-w-[200px]">
-                        No active proposals yet. Select a topic to start your <span className="font-bold text-foreground">Discovery Journey</span>.
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-6"
+                >
+                  <div className="p-12 rounded-[3rem] border-2 border-dashed border-border/50 flex flex-col items-center justify-center text-center gap-6 min-h-[400px] bg-muted/[0.02]">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                      <Target className="w-16 h-16 text-muted-foreground/40 relative z-10" strokeWidth={1.5} />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-foreground">Discover Your Future</h3>
+                      <p className="text-muted-foreground text-sm max-w-[280px] mx-auto leading-relaxed">
+                        Select a match from the list to initiate a <span className="text-primary font-black italic">Deep AI Reality Check</span> and connect with supervisors.
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                       {applications.slice().reverse().map((app, i) => (
-                         <motion.div 
-                           key={app.id}
-                           initial={{ opacity: 0, scale: 0.95 }}
-                           animate={{ opacity: 1, scale: 1 }}
-                           transition={{ delay: i * 0.1 }}
-                           className="p-4 rounded-2xl border border-border bg-card/50 hover:border-primary/20 transition-all group"
-                         >
-                           <div className="flex items-start gap-4">
-                              <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
-                                <Send className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                 <p className="text-[12px] font-bold truncate pr-4">{app.topicTitle}</p>
-                                 <p className="text-[10px] text-muted-foreground mt-0.5">{app.supervisorName}</p>
-                                 <div className="flex items-center gap-2 mt-2">
-                                    <div className="flex items-center gap-1">
-                                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                       <span className="text-[9px] font-bold text-emerald-600 uppercase">Contacted</span>
-                                    </div>
-                                    <span className="text-[9px] text-muted-foreground/40">•</span>
-                                    <span className="text-[9px] text-muted-foreground">{new Date(app.contactedAt).toLocaleDateString()}</span>
-                                 </div>
-                              </div>
-                           </div>
-                         </motion.div>
-                       ))}
-                    </div>
-                  )}
-                  
-                  {/* Stats card if any */}
-                  {applications.length > 0 && (
-                     <div className="p-5 rounded-3xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/10 space-y-3">
-                        <div className="flex items-center gap-2 text-primary">
-                           <ShieldCheck className="w-4 h-4" />
-                           <span className="text-xs font-bold uppercase tracking-tighter">Academic Tracking Active</span>
-                        </div>
-                        <p className="text-[11px] leading-relaxed text-muted-foreground">We are monitoring {applications.length} thesis request(s). You will receive an automated alert if a supervisor requests an interview.</p>
-                     </div>
-                  )}
+                  </div>
+                </motion.div>
                 </motion.div>
               ) : (
                 <motion.div

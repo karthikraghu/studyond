@@ -26,6 +26,7 @@ import {
   Settings,
   ChevronRight,
   Target,
+  Clock,
 } from 'lucide-react';
 
 // -- Types --
@@ -58,6 +59,7 @@ export const studentNavigation: NavSection[] = [
       { icon: Home, label: 'Home', path: '/home' },
       { icon: MessageSquare, label: 'Messages', path: '/messages', badge: 'messages' },
       { icon: FolderOpen, label: 'My Projects', path: '/projects' },
+      { icon: Clock, label: 'My Activity', path: '/activity' },
     ],
   },
   {

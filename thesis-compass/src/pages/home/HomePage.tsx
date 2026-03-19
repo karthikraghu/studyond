@@ -64,7 +64,7 @@ function getActionCards(role: "student" | "company" | "supervisor" | undefined):
         icon: Sparkles,
         title: 'Find relevant roles for your profile',
         highlight: 'relevant roles',
-        description: 'Match your background with specific industry and research positions. We utilize your GitHub and academic profile to find the best fit.',
+        description: 'Match your background with specific industry and research positions.',
         path: '/matches',
         className: 'md:col-span-4 md:row-span-2 p-8',
         iconClassName: 'w-8 h-8 text-blue-500 mb-2',
@@ -153,86 +153,100 @@ export default function HomePage() {
   const actionCards = getActionCards(formData.role);
 
   return (
-    <div className="px-6 lg:px-10 py-8 max-w-5xl">
-      {/* ── Greeting ── */}
-      <motion.h1
-        className="text-2xl font-semibold text-foreground tracking-tight"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {greeting.text}, {userName}? {greeting.emoji}
-      </motion.h1>
+    <div className="px-6 lg:px-10 py-8 w-full max-w-6xl">
+      <div className="space-y-12">
+        
+        {/* ── Greeting ── */}
+        <motion.div
+           initial={{ opacity: 0, x: -20 }}
+           animate={{ opacity: 1, x: 0 }}
+           transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <h1 className="text-3xl font-bold text-foreground tracking-tight leading-none">
+            {greeting.text}, <span className="text-primary italic">{userName}</span>? {greeting.emoji}
+          </h1>
+          <p className="text-muted-foreground mt-2 font-medium">Welcome back to your Thesis Compass.</p>
+        </motion.div>
 
-      {/* ── Dashboard Action Grid ── */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-8 auto-rows-min"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.08 }}
-      >
-        {actionCards.map((card, i) => (
-          <motion.button
-            key={i}
-            onClick={() => navigate(card.path)}
-            className={cn(
-              "group relative flex flex-col items-start gap-3 p-5 rounded-2xl border border-border bg-background text-left hover:shadow-xl hover:border-primary/20 hover:bg-primary/[0.02] transition-all duration-300 overflow-hidden",
-              card.className
-            )}
-            whileHover={{ y: -4 }}
-          >
-            {/* Soft background glow for the main card */}
-            {card.highlight === 'relevant roles' && (
-              <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
-            )}
-
-            {/* Icon */}
-            <card.icon
+        {/* ── Action Grid ── */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-6 gap-4 auto-rows-min"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15 }}
+        >
+          {actionCards.map((card, i) => (
+            <motion.button
+              key={i}
+              onClick={() => navigate(card.path)}
               className={cn(
-                "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
-                card.iconClassName || "text-muted-foreground"
+                "group relative flex flex-col items-start gap-3 p-6 rounded-[2rem] border border-border bg-card/40 backdrop-blur-sm text-left hover:shadow-2xl hover:border-primary/30 hover:bg-primary/[0.02] transition-all duration-500 overflow-hidden",
+                card.className
               )}
-              strokeWidth={2}
-            />
-
-            {/* Title */}
-            <p className={cn(
-              "font-bold text-foreground leading-snug",
-              card.highlight === 'relevant roles' ? "text-xl md:text-2xl" : "text-[14px]"
-            )}>
-              {card.highlight ? (
-                <>
-                  {card.title.split(card.highlight).map((part, j) => (
-                    <span key={j}>
-                      {j > 0 && (
-                        <span className="text-primary">{card.highlight}</span>
-                      )}
-                      {part}
-                    </span>
-                  ))}
-                </>
-              ) : (
-                card.title
+              whileHover={{ y: -6, scale: 1.01 }}
+            >
+              {/* Soft background glow for the main card */}
+              {card.highlight === 'relevant roles' && (
+                <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
               )}
-            </p>
 
-            {/* Description */}
-            <p className={cn(
-              "text-muted-foreground leading-relaxed",
-              card.highlight === 'relevant roles' ? "text-sm md:text-base opacity-90" : "text-[12px] opacity-70"
-            )}>
-              {card.description}
-            </p>
-            
-            {/* Action text for main card */}
-            {card.highlight === 'relevant roles' && (
-              <div className="mt-auto pt-6 flex items-center gap-2 text-primary font-bold text-sm">
-                Open Profiles <ArrowRight className="w-4 h-4" />
+              {/* Icon */}
+              <div className={cn(
+                "p-2.5 rounded-2xl bg-background shadow-sm border border-border group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500",
+                card.iconClassName ? "text-primary" : "text-muted-foreground/60"
+              )}>
+                <card.icon
+                  className={cn(
+                    "w-5 h-5",
+                    card.iconClassName
+                  )}
+                  strokeWidth={2.5}
+                />
               </div>
-            )}
-          </motion.button>
-        ))}
-      </motion.div>
+
+              {/* Title */}
+              <p className={cn(
+                "font-black text-foreground leading-tight tracking-tight mt-2",
+                card.highlight === 'relevant roles' ? "text-2xl md:text-3xl" : "text-[15px]"
+              )}>
+                {card.highlight ? (
+                  <>
+                    {card.title.split(card.highlight).map((part, j) => (
+                      <span key={j}>
+                        {j > 0 && (
+                          <span className="text-primary italic">{card.highlight}</span>
+                        )}
+                        {part}
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  card.title
+                )}
+              </p>
+
+              {/* Description */}
+              <p className={cn(
+                "text-muted-foreground leading-relaxed font-medium",
+                card.highlight === 'relevant roles' ? "text-sm md:text-lg opacity-80 max-w-[90%]" : "text-[12px] opacity-70"
+              )}>
+                {card.description}
+              </p>
+              
+              {/* Action text for main card */}
+              {card.highlight === 'relevant roles' && (
+                <div className="mt-8 pt-6 border-t border-primary/5 w-full flex items-center justify-between text-primary font-black text-sm uppercase tracking-widest">
+                  <span>Open Research Profiles</span>
+                  <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </div>
+              )}
+            </motion.button>
+          ))}
+        </motion.div>
+
+      </div>
     </div>
   );
 }

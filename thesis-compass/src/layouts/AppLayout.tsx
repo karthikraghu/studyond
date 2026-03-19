@@ -130,14 +130,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Bottom: Settings + User */}
         <div className="px-3 pb-3">
           <button
-            onClick={() => navigate('/settings')}
-            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] text-foreground/80 hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <Settings className="w-4 h-4" strokeWidth={1.75} />
-            <span>My Settings</span>
-          </button>
-
-          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors"
           >
