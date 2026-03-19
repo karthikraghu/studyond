@@ -10,11 +10,13 @@ import {
   ArrowLeft,
   UserCheck,
   Building2,
-  CheckCircle2
+  CheckCircle2,
+  Mail,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
-import { matchGoldenTriangle } from '@/lib/matching-engine';
 import { evaluateMatchWithQA } from '@/lib/agents/qa-agent';
 import type { QAMatchResult } from '@/lib/agents/qa-agent';
 import { cn } from '@/lib/utils';
@@ -24,11 +26,21 @@ import { Badge } from '@/components/ui/badge';
 // Mock data imports
 import topicsData from '@/mock-data/topics.json';
 import supervisorsData from '@/mock-data/supervisors.json';
-import companiesData from '@/mock-data/companies.json';
-import fieldsData from '@/mock-data/fields.json';
-import universitiesData from '@/mock-data/universities.json';
 
 import type { GoldenTriangleMatch } from '@/types/profile';
+
+// Re-using the supervisor matching logic from engine if needed, or simple local filter
+function findOtherSupervisors(topicFieldIds: string[], currentSupId: string, allSupervisors: any[]) {
+   return allSupervisors
+     .filter(s => s.id !== currentSupId)
+     .map(s => {
+        const overlap = s.fieldIds.filter((f: string) => topicFieldIds.includes(f)).length;
+        return { ...s, overlap };
+     })
+     .filter(s => s.overlap > 0)
+     .sort((a, b) => b.overlap - a.overlap)
+     .slice(0, 3);
+}
 
 /**
  * MatchPage — Displays personalized thesis opportunities
@@ -36,12 +48,16 @@ import type { GoldenTriangleMatch } from '@/types/profile';
  */
 export default function MatchPage() {
   const navigate = useNavigate();
-  const { studentProfile } = useOnboardingStore();
+  const { studentProfile, trackApplication, applications } = useOnboardingStore();
   const [matches, setMatches] = useState<GoldenTriangleMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<GoldenTriangleMatch | null>(null);
   const [qaResult, setQaResult] = useState<QAMatchResult | null>(null);
   const [isQaLoading, setIsQaLoading] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [hasSent, setHasSent] = useState<Record<string, boolean>>({}); // tracking sent status per topic id
+  const [activeSupervisorId, setActiveSupervisorId] = useState<string | null>(null);
 
   // 1. Initial Match Calculation
   useEffect(() => {
@@ -80,6 +96,7 @@ export default function MatchPage() {
   // 2. Trigger the QA Agent on Selection
   const handleSelectMatch = async (match: GoldenTriangleMatch) => {
     setSelectedMatch(match);
+    setActiveSupervisorId(match.supervisor.id);
     setQaResult(null);
     setIsQaLoading(true);
 
@@ -101,6 +118,42 @@ export default function MatchPage() {
     } finally {
       setIsQaLoading(false);
     }
+  };
+
+  const handleContactSupervisor = () => {
+    setIsContactModalOpen(true);
+  };
+
+  const handleSendMessage = () => {
+    setIsSending(true);
+    // Simulate API delay
+    setTimeout(() => {
+      setIsSending(false);
+      setIsContactModalOpen(false);
+      if (selectedMatch && activeSupervisorId) {
+         setHasSent(prev => ({ ...prev, [`${selectedMatch.topic.id}-${activeSupervisorId}`]: true }));
+         
+         // Record in trackable activity
+         const supRaw = activeSupervisorId === selectedMatch.supervisor.id 
+           ? selectedMatch.supervisor 
+           : supervisorsData.find(s => s.id === activeSupervisorId);
+           
+         // Normalize name
+         let supName = 'Supervisor';
+         if (supRaw) {
+            if ('name' in supRaw) supName = supRaw.name;
+            else if ('firstName' in supRaw) supName = `${supRaw.title || ''} ${supRaw.firstName} ${supRaw.lastName}`.trim();
+         }
+           
+         trackApplication({
+           topicId: selectedMatch.topic.id,
+           topicTitle: selectedMatch.topic.title,
+           supervisorId: activeSupervisorId,
+           supervisorName: supName,
+           companyName: selectedMatch.topic.company
+         });
+      }
+    }, 1500);
   };
 
   if (isLoading) {
@@ -215,12 +268,63 @@ export default function MatchPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center gap-4 min-h-[400px]"
+                  className="space-y-6"
                 >
-                  <Target className="w-12 h-12 text-muted-foreground/20" />
-                  <p className="text-muted-foreground text-sm max-w-[200px]">
-                    Select a topic to start the <span className="font-bold text-foreground">QA Match Validator</span>
-                  </p>
+                  {/* Activity Feed Header */}
+                  <div className="flex items-center justify-between px-2">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Recent Activity</h3>
+                    <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px]">{applications.length} Proposals</Badge>
+                  </div>
+
+                  {applications.length === 0 ? (
+                    <div className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center gap-4 min-h-[300px]">
+                      <Target className="w-12 h-12 text-muted-foreground/20" />
+                      <p className="text-muted-foreground text-sm max-w-[200px]">
+                        No active proposals yet. Select a topic to start your <span className="font-bold text-foreground">Discovery Journey</span>.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                       {applications.slice().reverse().map((app, i) => (
+                         <motion.div 
+                           key={app.id}
+                           initial={{ opacity: 0, scale: 0.95 }}
+                           animate={{ opacity: 1, scale: 1 }}
+                           transition={{ delay: i * 0.1 }}
+                           className="p-4 rounded-2xl border border-border bg-card/50 hover:border-primary/20 transition-all group"
+                         >
+                           <div className="flex items-start gap-4">
+                              <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
+                                <Send className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-[12px] font-bold truncate pr-4">{app.topicTitle}</p>
+                                 <p className="text-[10px] text-muted-foreground mt-0.5">{app.supervisorName}</p>
+                                 <div className="flex items-center gap-2 mt-2">
+                                    <div className="flex items-center gap-1">
+                                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                       <span className="text-[9px] font-bold text-emerald-600 uppercase">Contacted</span>
+                                    </div>
+                                    <span className="text-[9px] text-muted-foreground/40">•</span>
+                                    <span className="text-[9px] text-muted-foreground">{new Date(app.contactedAt).toLocaleDateString()}</span>
+                                 </div>
+                              </div>
+                           </div>
+                         </motion.div>
+                       ))}
+                    </div>
+                  )}
+                  
+                  {/* Stats card if any */}
+                  {applications.length > 0 && (
+                     <div className="p-5 rounded-3xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/10 space-y-3">
+                        <div className="flex items-center gap-2 text-primary">
+                           <ShieldCheck className="w-4 h-4" />
+                           <span className="text-xs font-bold uppercase tracking-tighter">Academic Tracking Active</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">We are monitoring {applications.length} thesis request(s). You will receive an automated alert if a supervisor requests an interview.</p>
+                     </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div
@@ -328,8 +432,80 @@ export default function MatchPage() {
                           )}
                         </div>
 
-                        {/* Match Tier Badge */}
-                        <div className="pt-4 border-t border-border">
+                        {/* Supervisor Selection */}
+                        <div className="mt-8 pt-6 border-t border-border">
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Select Academic Supervisor</p>
+                          <div className="space-y-3">
+                             {/* The Primary Match */}
+                             <button 
+                               onClick={() => setActiveSupervisorId(selectedMatch.supervisor.id)}
+                               className={cn(
+                                 "w-full p-4 rounded-2xl border transition-all duration-300 text-left space-y-3",
+                                 activeSupervisorId === selectedMatch.supervisor.id 
+                                   ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20" 
+                                   : "bg-muted/30 border-border hover:border-primary/20"
+                               )}
+                             >
+                                <div className="flex items-center justify-between">
+                                   <div className="flex items-center gap-3">
+                                      <div className="p-2 rounded-xl bg-blue-500/20 text-blue-600 font-bold text-xs uppercase">
+                                         Primary
+                                      </div>
+                                      <div>
+                                         <p className="text-sm font-bold">{selectedMatch.supervisor.name}</p>
+                                         <p className="text-[10px] text-muted-foreground">{selectedMatch.supervisor.university}</p>
+                                      </div>
+                                   </div>
+                                   {activeSupervisorId === selectedMatch.supervisor.id && (
+                                     <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                   )}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                   {selectedMatch.supervisor.researchInterests.slice(0, 3).map((interest, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-[9px] py-0 px-2 h-5 bg-white text-blue-600 border-none">
+                                         {interest}
+                                      </Badge>
+                                   ))}
+                                </div>
+                             </button>
+
+                             {/* Alternative Matches */}
+                             {findOtherSupervisors(
+                               (topicsData as any[]).find(t => t.id === selectedMatch.topic.id)?.fieldIds || [],
+                               selectedMatch.supervisor.id,
+                               supervisorsData
+                             ).map((sup: any) => (
+                                <button 
+                                  key={sup.id} 
+                                  onClick={() => setActiveSupervisorId(sup.id)}
+                                  className={cn(
+                                    "w-full p-4 rounded-2xl border transition-all duration-300 text-left space-y-3",
+                                    activeSupervisorId === sup.id 
+                                      ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20" 
+                                      : "bg-muted/30 border-border hover:border-primary/20"
+                                  )}
+                                >
+                                   <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                         <div className="p-2 rounded-xl bg-muted text-muted-foreground font-bold text-xs uppercase tracking-tighter">
+                                            {sup.firstName[0]}{sup.lastName[0]}
+                                         </div>
+                                         <div>
+                                            <p className="text-sm font-medium">{sup.title} {sup.firstName} {sup.lastName}</p>
+                                            <p className="text-[10px] text-muted-foreground">Alternative Suggestion</p>
+                                         </div>
+                                      </div>
+                                      {activeSupervisorId === sup.id && (
+                                        <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                      )}
+                                   </div>
+                                </button>
+                             ))}
+                          </div>
+                        </div>
+
+                        {/* Match Status & Contact Action */}
+                        <div className="pt-6 border-t border-border mt-auto space-y-4">
                           <div className={cn(
                              "w-full py-3 rounded-xl text-center font-bold text-sm",
                              qaResult.match_tier === 'Perfect Fit' ? "bg-emerald-500 text-white" :
@@ -339,6 +515,21 @@ export default function MatchPage() {
                           )}>
                             Match Status: {qaResult.match_tier}
                           </div>
+                          
+                          {hasSent[`${selectedMatch.topic.id}-${activeSupervisorId}`] ? (
+                            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                              <CheckCircle2 className="w-5 h-5" />
+                              <span className="text-sm font-bold">Proposal Sent!</span>
+                              <p className="text-[10px] text-center opacity-80 uppercase tracking-tighter">The supervisor will be notified of your specific interest in this topic.</p>
+                            </div>
+                          ) : (
+                            <Button 
+                              onClick={handleContactSupervisor}
+                              className="w-full h-12 rounded-xl text-lg font-bold gap-2 shadow-lg shadow-primary/20"
+                            >
+                              <Mail className="w-5 h-5" /> Contact {activeSupervisorId === selectedMatch.supervisor.id ? selectedMatch.supervisor.name.split(' ').pop() : supervisorsData.find(s => s.id === activeSupervisorId)?.lastName}
+                            </Button>
+                          )}
                         </div>
                       </motion.div>
                     ) : (
@@ -354,6 +545,79 @@ export default function MatchPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Contact Modal ── */}
+      <AnimatePresence>
+        {isContactModalOpen && selectedMatch && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setIsContactModalOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden"
+            >
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold italic tracking-tight">Request Supervision</h2>
+                    <p className="text-sm text-muted-foreground tracking-tighter">
+                      To: {activeSupervisorId === selectedMatch.supervisor.id 
+                        ? selectedMatch.supervisor.name 
+                        : (() => {
+                            const s = supervisorsData.find(s => s.id === activeSupervisorId);
+                            return s ? `${s.title} ${s.firstName} ${s.lastName}` : 'Supervisor';
+                          })()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                       <Sparkles className="w-3 h-3 text-primary" /> AI Suggestion
+                    </p>
+                    <textarea 
+                      className="w-full bg-transparent text-sm leading-relaxed focus:outline-none min-h-[180px] resize-none"
+                      defaultValue={`Dear ${
+                        activeSupervisorId === selectedMatch.supervisor.id 
+                        ? selectedMatch.supervisor.name.split(' ').pop() 
+                        : (supervisorsData.find(s => s.id === activeSupervisorId)?.lastName || 'Professor')
+                      },\n\nI am very interested in the thesis topic "${selectedMatch.topic.title}". My background in ${studentProfile?.skills.slice(0, 3).join(', ')} aligns well with your research area.\n\nI would love to discuss a potential supervision for my ${studentProfile?.degree.toUpperCase()} thesis.\n\nBest regards,\n${studentProfile?.firstName} ${studentProfile?.lastName}`}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-primary/[0.03] border border-primary/10">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                           <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <span className="text-[11px] font-medium leading-tight text-muted-foreground max-w-[180px]">Your verified StudyonD profile and GitHub stats will be attached.</span>
+                     </div>
+                     <Button 
+                       onClick={handleSendMessage}
+                       disabled={isSending}
+                       className="gap-2 font-bold px-6"
+                     >
+                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Send Request
+                     </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

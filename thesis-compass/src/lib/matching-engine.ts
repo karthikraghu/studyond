@@ -161,19 +161,19 @@ export function findMatchingSupervisors(
 ): SupervisorMatch[] {
   return supervisors
     .map(supervisor => {
-      const fieldOverlap = supervisor.fieldIds.filter(f => topicFieldIds.includes(f)).length;
+      const fieldOverlapCount = supervisor.fieldIds.filter(f => topicFieldIds.includes(f)).length;
       const titleWords = topicTitle.toLowerCase().split(/\s+/);
       const researchOverlap = supervisor.researchInterests.filter(ri =>
         titleWords.some(w => ri.toLowerCase().includes(w))
       ).length;
 
       const score = Math.min(100, Math.round(
-        (fieldOverlap / Math.max(1, topicFieldIds.length)) * 60 +
+        (fieldOverlapCount / Math.max(1, topicFieldIds.length)) * 60 +
         (researchOverlap / Math.max(1, supervisor.researchInterests.length)) * 40
       ));
 
       const reasons: string[] = [];
-      if (fieldOverlap > 0) reasons.push(`${fieldOverlap} overlapping field(s)`);
+      if (fieldOverlapCount > 0) reasons.push(`${fieldOverlapCount} overlapping field(s)`);
       if (researchOverlap > 0) reasons.push(`Research interests align: ${supervisor.researchInterests.slice(0, 2).join(', ')}`);
 
       return { supervisor, score, reasons };

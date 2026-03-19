@@ -7,6 +7,17 @@ import { type StudentProfile, type GitHubStats } from "../types/profile";
 // 1. Defininig the Shape of our Store 
 // ----------------------------------------------------------------------
 
+export interface ThesisApplication {
+  id: string;
+  topicId: string;
+  topicTitle: string;
+  supervisorId: string;
+  supervisorName: string;
+  companyName?: string;
+  status: 'contacted' | 'reviewing' | 'accepted' | 'rejected';
+  contactedAt: string;
+}
+
 interface OnboardingStore {
   // --- Data state ---
   currentStep: number;
@@ -20,7 +31,12 @@ interface OnboardingStore {
   githubStats: GitHubStats | null;
   isFetchingGithub: boolean;
 
+  // --- Application state ---
+  applications: ThesisApplication[];
+
   // --- Actions ---
+  trackApplication: (app: Omit<ThesisApplication, 'id' | 'contactedAt' | 'status'>) => void;
+  updateApplicationStatus: (id: string, status: ThesisApplication['status']) => void;
   nextStep: () => void;
   prevStep: () => void;
   setStep: (step: number) => void; 
@@ -58,6 +74,25 @@ export const useOnboardingStore = create<OnboardingStore>()(
       studentProfile: null,
       githubStats: null,
       isFetchingGithub: false,
+      applications: [],
+
+      trackApplication: (appData: Omit<ThesisApplication, 'id' | 'contactedAt' | 'status'>) => set((state) => ({
+        applications: [
+          ...state.applications,
+          {
+            ...appData,
+            id: `app-${Math.random().toString(36).substr(2, 9)}`,
+            status: 'contacted',
+            contactedAt: new Date().toISOString()
+          }
+        ]
+      })),
+
+      updateApplicationStatus: (id: string, status: ThesisApplication['status']) => set((state) => ({
+        applications: state.applications.map(app => 
+          app.id === id ? { ...app, status } : app
+        )
+      })),
       
       nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 4) })),
       prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
