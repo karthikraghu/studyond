@@ -19,7 +19,10 @@ export interface StudentProfile {
   email: string | null;
   degree: 'bsc' | 'msc' | 'phd';
   studyProgramId: string | null;
+  /** ID of a known Swiss university (e.g., "uni-01" for ETH Zurich), or null if not in database */
   universityId: string | null;
+  /** Raw university name extracted from CV (works for any university worldwide) */
+  universityName: string | null;
   skills: string[];
   about: string | null;
   objectives: ('topic' | 'supervision' | 'career_start' | 'industry_access' | 'project_guidance')[];

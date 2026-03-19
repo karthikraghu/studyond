@@ -83,10 +83,9 @@ function StudentForm() {
       const fullName = `${profile.firstName} ${profile.lastName}`.trim();
       const techStack = profile.skills.join(", ");
       
-      // Try to find university name from universityId (fallback to empty)
-      // The profile has universityId like "uni-01", we'd need to resolve it
-      // For now, use a simple approach
-      const university = profile.universityId || "";
+      // Use universityName (extracted from CV) - works for any university worldwide
+      // Falls back to empty string if no university was detected
+      const university = profile.universityName || "";
       
       // Map degree to degree program
       const degreeMap: Record<string, string> = {

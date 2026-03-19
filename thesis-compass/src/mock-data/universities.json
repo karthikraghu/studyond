@@ -53,20 +53,20 @@
     "name": "FHNW",
     "country": "CH",
     "domains": ["fhnw.ch"],
-    "about": null
+    "about": "FHNW (Fachhochschule Nordwestschweiz) is one of Switzerland's leading universities of applied sciences with campuses across four cantons. It offers practice-oriented education in business, engineering, social work, and design, with strong ties to regional industry partners."
   },
   {
     "id": "uni-09",
     "name": "OST – Eastern Switzerland University of Applied Sciences",
     "country": "CH",
     "domains": ["ost.ch"],
-    "about": null
+    "about": "OST is a leading Swiss university of applied sciences combining the strengths of three former institutions. It offers innovative programs in engineering, IT, business, and health sciences, with a strong focus on applied research and regional economic development."
   },
   {
     "id": "uni-10",
     "name": "USI – Università della Svizzera italiana",
     "country": "CH",
     "domains": ["usi.ch"],
-    "about": null
+    "about": "USI is the only Italian-speaking university in Switzerland, located in Lugano and Mendrisio. Known for its excellence in informatics, communication sciences, economics, and architecture, it offers an international environment with programs in Italian, English, and German."
   }
 ]

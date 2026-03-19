@@ -97,11 +97,32 @@ export function extractProfileHeuristic(rawText: string): StudentProfile {
 
   // University matching
   let universityId: string | null = null;
+  let universityName: string | null = null;
+  
   for (const uni of universities) {
     if (text.includes(uni.name.toLowerCase()) ||
         uni.domains.some(d => text.includes(d.toLowerCase()))) {
       universityId = uni.id;
+      universityName = uni.name;
       break;
+    }
+  }
+  
+  // If no match found, try to extract university name heuristically
+  if (!universityName) {
+    // Look for common university patterns in the original text (not lowercased)
+    const uniPatterns = [
+      /(?:University of|Université de|Universität|Universidad de)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ\s]+)/,
+      /([A-ZÀ-Ý][A-Za-zÀ-ÿ]+)\s+(?:University|Institut|Institute|School|College)/,
+      /(?:ETH|MIT|EPFL|HSG|TU|KU|LMU|UCL|LSE|INSEAD)\s*[A-Za-zÀ-ÿ]*/,
+    ];
+    
+    for (const pattern of uniPatterns) {
+      const match = rawText.match(pattern);
+      if (match) {
+        universityName = match[0].trim();
+        break;
+      }
     }
   }
 
@@ -167,6 +188,7 @@ export function extractProfileHeuristic(rawText: string): StudentProfile {
     degree,
     studyProgramId,
     universityId,
+    universityName,
     skills: [...new Set(skills)],
     about,
     objectives,
@@ -198,7 +220,8 @@ Type definitions for Student:
   email: string | null;
   degree: "bsc" | "msc" | "phd";
   studyProgramId: string | null;
-  universityId: string | null;
+  universityId: string | null;   // ID from available list, or null if not a listed Swiss university
+  universityName: string | null; // ALWAYS extract the full university name from the CV
   skills: string[];              // e.g., ["Python", "machine learning", "data analysis"]
   about: string | null;          // Short bio/summary
   objectives: ("topic" | "supervision" | "career_start" | "industry_access" | "project_guidance")[];
@@ -209,7 +232,7 @@ Type definitions for Student:
 Available fields:
 ${fieldsContext}
 
-Available universities:
+Available universities (Swiss partner universities):
 ${universitiesContext}
 
 Available study programs:
@@ -219,15 +242,26 @@ RULES:
 1. Extract all relevant info from the CV text
 2. Return a JSON object matching the structure exactly
 3. Match fieldIds from the available fields list (use exact IDs like "field-01")
-4. For universityId: Match against the university name, common abbreviations, or domain. Examples:
-   - "ETH Zurich" or "ETH" or "Swiss Federal Institute of Technology" → "uni-01"
-   - "EPFL" or "École polytechnique fédérale de Lausanne" → "uni-02"
-   - "University of St. Gallen" or "HSG" → "uni-03"
-   - Match email domain (e.g., @ethz.ch → "uni-01", @epfl.ch → "uni-02")
+
+4. **UNIVERSITY EXTRACTION (IMPORTANT)**:
+   - universityName: ALWAYS extract the full university name as written in the CV. This works for ANY university worldwide (e.g., "Massachusetts Institute of Technology", "TU Munich", "University of Oxford").
+   - universityId: Only set this if the university matches one of our Swiss partner universities:
+     * "ETH Zurich" / "ETH" / "Swiss Federal Institute of Technology" / @ethz.ch → "uni-01"
+     * "EPFL" / "École polytechnique fédérale de Lausanne" / @epfl.ch → "uni-02"  
+     * "University of St. Gallen" / "HSG" / @unisg.ch → "uni-03"
+     * "University of Zurich" / "UZH" / @uzh.ch → "uni-04"
+     * "University of Bern" / @unibe.ch → "uni-05"
+     * "University of Basel" / @unibas.ch → "uni-06"
+     * "ZHAW" / @zhaw.ch → "uni-07"
+     * "FHNW" / @fhnw.ch → "uni-08"
+     * "OST" / @ost.ch → "uni-09"
+     * "USI" / "Università della Svizzera italiana" / @usi.ch → "uni-10"
+   - If the university is NOT in our Swiss partner list (e.g., MIT, Stanford, TU Munich), set universityId to null but STILL extract universityName.
+
 5. Match studyProgramId from available lists if the program name is mentioned
 6. Infer student objectives from context (career goals, interests, what they're looking for)
 7. Generate semantic tags based on domain expertise combinations
-8. Use null for fields you truly cannot determine (but try your best to match universities!)
+8. For fields you truly cannot determine, use null. But ALWAYS try to extract universityName!
 9. Return ONLY the JSON object, no markdown code blocks, no explanation`;
 
   try {
@@ -256,6 +290,7 @@ RULES:
     console.log('LLM extracted profile:', {
       name: `${profile.firstName} ${profile.lastName}`,
       universityId: profile.universityId,
+      universityName: profile.universityName,
       degree: profile.degree,
       skills: profile.skills?.length || 0,
       fields: profile.fieldIds?.length || 0,
@@ -267,6 +302,7 @@ RULES:
     profile.objectives = profile.objectives || ['topic'];
     profile.fieldIds = profile.fieldIds || [];
     profile.semanticTags = profile.semanticTags || [];
+    profile.universityName = profile.universityName || null;
 
     return profile;
   } catch (err) {
