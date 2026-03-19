@@ -10,9 +10,15 @@
  * - Degree Match (0-100): Does the topic accept the student's degree?
  * - Career Alignment (0-100): Does the employment type match goals?
  * - Industry Demand (0-100): Based on company and topic type
+ *
+ * Enhanced with:
+ * - Golden Triangle matching (Topic × Supervisor × Company)
+ * - Semantic vector search via Pinecone
  */
 
-import type { Topic, Student, Supervisor, Expert, Field, Company } from '@/types';
+import type { Topic, Student, Supervisor, Expert, Field, Company, University } from '@/types';
+import type { StudentProfile, GoldenTriangleMatch } from '@/types/profile';
+import { getVectorStore, type VectorSearchResult } from './vector-store';
 
 export interface MatchScore {
   overall: number;
@@ -233,4 +239,247 @@ function generateMatchReasons(
   if (reasons.length === 0) reasons.push('General topic relevance');
 
   return reasons;
+}
+
+// ── Golden Triangle Matching ──
+
+/**
+ * Calculate Jaccard similarity between two field ID arrays
+ */
+function fieldOverlap(fields1: string[], fields2: string[]): number {
+  const set1 = new Set(fields1);
+  const intersection = fields2.filter(f => set1.has(f));
+  const union = new Set([...fields1, ...fields2]);
+  return union.size === 0 ? 0 : intersection.length / union.size;
+}
+
+/**
+ * Golden Triangle Matching — Find best (Topic, Supervisor, Company) combinations
+ * 
+ * Uses semantic vector search combined with field overlap and degree matching.
+ */
+export async function matchGoldenTriangle(
+  profile: StudentProfile,
+  topics: Topic[],
+  supervisors: Supervisor[],
+  companies: Company[],
+  fields: Field[],
+  universities: University[],
+  topK: number = 5
+): Promise<GoldenTriangleMatch[]> {
+  const vectorStore = getVectorStore();
+  
+  // Build profile text for semantic search
+  const profileText = [
+    profile.skills.join(' '),
+    profile.fieldIds.map(fid => fields.find(f => f.id === fid)?.name || '').join(' '),
+    profile.about || '',
+    profile.semanticTags?.join(' ') || ''
+  ].join(' ');
+
+  // Search for similar topics
+  let topicResults: VectorSearchResult[] = [];
+  try {
+    topicResults = (await vectorStore.search(profileText, 20))
+      .filter(r => r.metadata.type === 'topic');
+  } catch (err) {
+    console.warn('Vector search failed, falling back to field-based matching:', err);
+  }
+
+  // If vector search didn't work or returned nothing, use all topics
+  if (topicResults.length === 0) {
+    topicResults = topics.map(t => ({
+      id: `topic-${t.id}`,
+      score: 0.5,
+      metadata: { type: 'topic', ...t }
+    }));
+  }
+
+  // Score each topic
+  const scoredTopics = topicResults.map(r => {
+    const topic = (r.metadata as unknown) as Topic;
+    const vectorScore = r.score;
+    const fieldScore = fieldOverlap(profile.fieldIds, topic.fieldIds || []);
+    const degreeMatch = topic.degrees?.includes(profile.degree) ? 1 : 0;
+    const combinedScore = 0.5 * vectorScore + 0.3 * fieldScore + 0.2 * degreeMatch;
+    return { topic, vectorScore, fieldScore, degreeMatch, combinedScore };
+  });
+  scoredTopics.sort((a, b) => b.combinedScore - a.combinedScore);
+
+  // Search for similar supervisors
+  let supervisorResults: VectorSearchResult[] = [];
+  try {
+    supervisorResults = (await vectorStore.search(profileText, 15))
+      .filter(r => r.metadata.type === 'supervisor');
+  } catch {
+    // Fall back to all supervisors
+  }
+
+  if (supervisorResults.length === 0) {
+    supervisorResults = supervisors.map(s => ({
+      id: `supervisor-${s.id}`,
+      score: 0.5,
+      metadata: { type: 'supervisor', ...s }
+    }));
+  }
+
+  // Score supervisors
+  const scoredSupervisors = supervisorResults.map(r => {
+    const sup = (r.metadata as unknown) as Supervisor;
+    const vectorScore = r.score;
+    const supFieldIds = sup.fieldIds || [];
+    const fieldScore = fieldOverlap(profile.fieldIds, supFieldIds);
+    const uniBonus = sup.universityId === profile.universityId ? 0.2 : 0;
+    const combinedScore = 0.4 * vectorScore + 0.4 * fieldScore + 0.2 * uniBonus;
+    return { supervisor: sup, vectorScore, fieldScore, uniBonus, combinedScore };
+  });
+  scoredSupervisors.sort((a, b) => b.combinedScore - a.combinedScore);
+
+  // Build Golden Triangles
+  const triangles: GoldenTriangleMatch[] = [];
+
+  for (const topicResult of scoredTopics.slice(0, 10)) {
+    const topic = topicResult.topic;
+
+    // Find best supervisor for this topic
+    let bestSupervisor: (typeof scoredSupervisors[0] & { topicScore: number }) | null = null;
+    let bestSupScore = 0;
+
+    for (const supResult of scoredSupervisors.slice(0, 10)) {
+      const sup = supResult.supervisor;
+      const topicFieldIds = topic.fieldIds || [];
+      const supFieldIds = sup.fieldIds || [];
+      const topicSupFieldOverlap = fieldOverlap(topicFieldIds, supFieldIds);
+      const sameUniBonus = topic.universityId === sup.universityId ? 0.15 : 0;
+
+      // Prioritize supervisors linked to the topic
+      const isLinkedSupervisor = topic.supervisorIds?.includes(sup.id) ? 0.3 : 0;
+
+      const supTopicScore = 0.4 * topicSupFieldOverlap + 0.3 * supResult.combinedScore + sameUniBonus + isLinkedSupervisor;
+
+      if (supTopicScore > bestSupScore) {
+        bestSupScore = supTopicScore;
+        bestSupervisor = { ...supResult, topicScore: supTopicScore };
+      }
+    }
+
+    if (!bestSupervisor) continue;
+
+    // Get company info
+    const company = topic.companyId
+      ? companies.find(c => c.id === topic.companyId) || null
+      : null;
+
+    // Triangle score
+    const triangleScore =
+      0.4 * topicResult.combinedScore +
+      0.3 * bestSupervisor.combinedScore +
+      0.3 * bestSupScore;
+
+    // Generate explanation
+    const explanation = generateMatchExplanation(
+      profile,
+      topic,
+      bestSupervisor.supervisor,
+      company,
+      fields,
+      universities,
+      triangleScore
+    );
+
+    triangles.push({
+      topic: {
+        id: topic.id,
+        title: topic.title,
+        description: (topic.description || '').substring(0, 150) + '...',
+        company: company?.name || 'University topic',
+        employment: topic.employment,
+        employmentType: topic.employmentType,
+        fields: (topic.fieldIds || []).map(fid => fields.find(f => f.id === fid)?.name || fid),
+        score: Math.round(topicResult.combinedScore * 100) / 100,
+      },
+      supervisor: {
+        id: bestSupervisor.supervisor.id,
+        name: `${bestSupervisor.supervisor.title} ${bestSupervisor.supervisor.firstName} ${bestSupervisor.supervisor.lastName}`,
+        university: universities.find(u => u.id === bestSupervisor.supervisor.universityId)?.name || '',
+        researchInterests: bestSupervisor.supervisor.researchInterests || [],
+        score: Math.round(bestSupervisor.combinedScore * 100) / 100,
+      },
+      company: company ? {
+        id: company.id,
+        name: company.name,
+        description: company.description,
+        size: company.size,
+      } : null,
+      triangleScore: Math.round(triangleScore * 100) / 100,
+      explanation,
+    });
+  }
+
+  // Deduplicate by topic (keep highest triangle score)
+  const seen = new Set<string>();
+  const unique: GoldenTriangleMatch[] = [];
+  for (const tri of triangles.sort((a, b) => b.triangleScore - a.triangleScore)) {
+    if (!seen.has(tri.topic.id)) {
+      seen.add(tri.topic.id);
+      unique.push(tri);
+    }
+  }
+
+  return unique.slice(0, topK);
+}
+
+/**
+ * Generate human-readable match explanation
+ */
+function generateMatchExplanation(
+  profile: StudentProfile,
+  topic: Topic,
+  supervisor: Supervisor,
+  company: Company | null,
+  fields: Field[],
+  universities: University[],
+  triangleScore: number
+): string {
+  const studentName = `${profile.firstName} ${profile.lastName}`;
+  const studentSkills = profile.skills.slice(0, 4).join(', ');
+  const studentFields = profile.fieldIds
+    .map(fid => fields.find(f => f.id === fid)?.name || fid)
+    .join(', ');
+  const topicFields = (topic.fieldIds || [])
+    .map(fid => fields.find(f => f.id === fid)?.name || fid)
+    .join(', ');
+
+  let explanation = `**Why this match works for ${studentName}:**\n\n`;
+
+  // Topic match reasoning
+  explanation += `📋 **Topic:** "${topic.title}"\n`;
+  if (company) {
+    explanation += `This opportunity from **${company.name}** aligns with your background in ${studentFields}. `;
+  }
+  explanation += `Your skills in ${studentSkills} are relevant to this topic's focus on ${topicFields}.\n\n`;
+
+  // Supervisor match reasoning
+  const supName = `${supervisor.title} ${supervisor.firstName} ${supervisor.lastName}`;
+  const supUni = universities.find(u => u.id === supervisor.universityId)?.name || '';
+  explanation += `👩‍🏫 **Supervisor:** ${supName} (${supUni})\n`;
+  explanation += `Their research in ${(supervisor.researchInterests || []).slice(0, 3).join(', ')} `;
+  explanation += `intersects with the topic's domain. `;
+  
+  const studentUni = universities.find(u => u.id === profile.universityId);
+  if (studentUni && supUni === studentUni.name) {
+    explanation += `Bonus: they're at your university, making supervision logistics easy. `;
+  }
+  explanation += '\n\n';
+
+  // Employment opportunity
+  if (topic.employment === 'yes' || topic.employment === 'open') {
+    const empType = topic.employmentType || 'position';
+    explanation += `💼 **Career opportunity:** This topic ${topic.employment === 'yes' ? 'includes' : 'may lead to'} a ${empType} role.\n\n`;
+  }
+
+  // Triangle score
+  explanation += `🎯 **Match confidence:** ${Math.round(triangleScore * 100)}%`;
+
+  return explanation;
 }

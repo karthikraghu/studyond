@@ -8,17 +8,36 @@
  * Usage: npx tsx server.ts
  */
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { streamText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 
+// Load environment variables from .env.local first (takes priority), then .env
+const envLocalResult = dotenv.config({ path: '.env.local' });
+const envResult = dotenv.config(); // Loads .env if .env.local doesn't have a variable
+
+// Log which env files were loaded
+if (envLocalResult.parsed) {
+  console.log('✅ Loaded environment from .env.local');
+} else if (envResult.parsed) {
+  console.log('✅ Loaded environment from .env');
+} else {
+  console.warn('⚠️  No .env or .env.local file found!');
+}
+
 // Import prompts (these are plain string exports, no type issues)
 import { SYSTEM_PROMPT_BASE, STAGE_PROMPTS } from './src/lib/prompts.js';
+import { extractText, truncateText, MAX_FILE_SIZE, MAX_TEXT_LENGTH } from './src/lib/pdf-extractor.js';
+import { extractProfile } from './src/lib/profile-extractor.js';
+import { matchGoldenTriangle } from './src/lib/matching-engine.js';
+import { initVectorStore, getVectorStore } from './src/lib/vector-store.js';
+import type { StudentProfile } from './src/types/profile.js';
 
 const app = express();
 const PORT = 3001;
@@ -26,8 +45,22 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Multer setup for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.pdf', '.txt', '.md'].includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported file type: ${ext}. Accepted: .pdf, .txt, .md`));
+    }
+  },
+});
+
 // ── Load mock data once at startup ──
-const mockDataDir = path.join(import.meta.dirname, 'src', 'mock-data');
+const mockDataDir = path.resolve(process.cwd(), 'src', 'mock-data');
 
 function loadJSON(filename: string) {
   return JSON.parse(fs.readFileSync(path.join(mockDataDir, filename), 'utf-8'));
@@ -318,14 +351,136 @@ app.post('/api/match', async (req, res) => {
   }
 });
 
-// ── Start ──
-app.listen(PORT, () => {
-  console.log(`\n🚀 Thesis Compass API server running at http://localhost:${PORT}`);
-  console.log(`   Chat: POST http://localhost:${PORT}/api/chat`);
-  console.log(`   Match: POST http://localhost:${PORT}/api/match\n`);
-  
-  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your-api-key-here') {
-    console.warn('⚠️  ANTHROPIC_API_KEY not set! Add it to .env.local');
-    console.warn('   Get your key at: https://console.anthropic.com/\n');
+// ── Process CV endpoint ──
+app.post('/api/process-cv', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded. Send a PDF, TXT, or MD file.' });
+    }
+
+    // Extract text from file
+    const ext = path.extname(file.originalname).toLowerCase();
+    let cvText = await extractText(file.buffer, ext);
+
+    if (!cvText || cvText.trim().length === 0) {
+      return res.status(400).json({ error: 'Could not extract text from the uploaded file.' });
+    }
+
+    // Truncate if too long
+    cvText = truncateText(cvText);
+
+    // Extract profile using LLM (with heuristic fallback)
+    const profile = await extractProfile(cvText);
+
+    res.json({
+      profile,
+      meta: {
+        fileName: file.originalname,
+        textLength: cvText.length,
+      },
+    });
+  } catch (err: any) {
+    console.error('Process CV error:', err);
+    res.status(500).json({ error: err.message || 'Failed to process CV' });
   }
+});
+
+// ── Match Profile endpoint ──
+app.post('/api/match-profile', async (req, res) => {
+  try {
+    const { profile, topK = 5 } = req.body as { profile: StudentProfile; topK?: number };
+    
+    if (!profile) {
+      return res.status(400).json({ error: 'Missing "profile" in request body.' });
+    }
+
+    // Run Golden Triangle matching
+    const matches = await matchGoldenTriangle(
+      profile,
+      mockData.topics,
+      mockData.supervisors,
+      mockData.companies,
+      mockData.fields,
+      mockData.universities,
+      topK
+    );
+
+    res.json({
+      matches,
+      meta: {
+        profileId: profile.id,
+        matchCount: matches.length,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    console.error('Match profile error:', err);
+    res.status(500).json({ error: err.message || 'Failed to match profile' });
+  }
+});
+
+// ── Multer error handler ──
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB.` });
+    }
+    return res.status(400).json({ error: err.message });
+  }
+  if (err.message?.includes('Unsupported file type')) {
+    return res.status(400).json({ error: err.message });
+  }
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// ── Start ──
+async function main() {
+  // Initialize vector store and index data
+  if (process.env.PINECONE_API_KEY) {
+    try {
+      console.log('📊 Initializing Pinecone vector store...');
+      const vectorStore = await initVectorStore();
+      
+      // Index mock data
+      await vectorStore.indexTopicsAndSupervisors(
+        mockData.topics,
+        mockData.supervisors,
+        mockData.companies,
+        mockData.fields
+      );
+    } catch (err) {
+      console.warn('⚠️  Pinecone initialization failed:', (err as Error).message);
+      console.warn('   Semantic matching will fall back to field-based matching.\n');
+    }
+  } else {
+    console.warn('⚠️  PINECONE_API_KEY not set! Semantic matching will be limited.\n');
+  }
+
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Thesis Compass API server running at http://localhost:${PORT}`);
+    console.log(`   Chat:          POST http://localhost:${PORT}/api/chat`);
+    console.log(`   Match:         POST http://localhost:${PORT}/api/match`);
+    console.log(`   Process CV:    POST http://localhost:${PORT}/api/process-cv`);
+    console.log(`   Match Profile: POST http://localhost:${PORT}/api/match-profile\n`);
+    
+    // Check API keys and show status
+    const hasAnthropicKey = process.env.ANTHROPIC_API_KEY && 
+                           process.env.ANTHROPIC_API_KEY !== 'your_anthropic_api_key_here' &&
+                           process.env.ANTHROPIC_API_KEY !== 'your-api-key-here';
+    
+    if (hasAnthropicKey) {
+      console.log('✅ ANTHROPIC_API_KEY configured - AI CV extraction enabled');
+    } else {
+      console.warn('⚠️  ANTHROPIC_API_KEY not set! Add it to .env or .env.local');
+      console.warn('   Get your key at: https://console.anthropic.com/');
+      console.warn('   Falling back to heuristic CV extraction (less accurate)\n');
+    }
+  });
+}
+
+main().catch(err => {
+  console.error('Fatal error:', err);
+  process.exit(1);
 });

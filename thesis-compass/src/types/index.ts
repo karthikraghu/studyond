@@ -7,3 +7,4 @@
 export * from './thesis';
 export * from './matching';
 export * from './timeline';
+export * from './profile';

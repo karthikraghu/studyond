@@ -11,7 +11,7 @@ import {
   CompanySchema, 
   SupervisorSchema 
 } from "../../types/onboarding";
-import { mockExtractedCVData } from "../../mock-data/onboardingMockData";
+import type { StudentProfile } from "../../types/profile";
 
 // Shadcn UI primitives (assuming installed)
 import { 
@@ -25,8 +25,9 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 // 1. The Student Form
 // ----------------------------------------------------------------------
 function StudentForm() {
-  const { formData, updateData, nextStep, prevStep } = useOnboardingStore();
+  const { formData, updateData, nextStep, prevStep, setStudentProfile } = useOnboardingStore();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Initialize strictly with StudentSchema
   const form = useForm<z.infer<typeof StudentSchema>>({
@@ -48,46 +49,65 @@ function StudentForm() {
   };
 
   // ----------------------------------------------------------------------
-  // HANDOFF CONTEXT FOR TEAMMATE (Backend / AI parsing integration)
+  // CV Upload Handler — Calls /api/process-cv endpoint
   // ----------------------------------------------------------------------
-  // 1. You receive the `File` object from the standard HTML input below.
-  // 2. You will likely create a FormData object:
-  //    const formData = new FormData();
-  //    formData.append("cv", file);
-  // 3. Send to your endpoint (e.g. FastAPI / Python backend) using fetch/axios.
-  // 4. Await the JSON response containing the extracted structured data.
-  // 5. Use `form.setValue(key, response.value)` to auto-fill the React Hook Form.
-  // 6. Call `form.trigger()` instantly so the UI removes validation error warnings.
   const handleActualCVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
+    setUploadError(null);
 
     try {
-      // TODO (Teammate): Insert your actual fetch/axios call to the AI parser here:
-      // const response = await uploadFileToPythonParser(file);
-      // const aiExtractedData = response.data;
+      // Create FormData and send to backend
+      const formDataPayload = new FormData();
+      formDataPayload.append("file", file);
 
-      // ----------------------------------------------------------------------
-      // [TEMPORARY MOCK FOR HACKATHON DEMO UNTIL BACKEND IS READY] 
-      // We simulate a 2-second backend delay, then auto-fill data using our mock.
-      // ----------------------------------------------------------------------
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const aiExtractedData = mockExtractedCVData;
+      const response = await fetch("http://localhost:3001/api/process-cv", {
+        method: "POST",
+        body: formDataPayload,
+      });
 
-      // Updating the form fields with extracted data
-      form.setValue("fullName", aiExtractedData.fullName);
-      form.setValue("email", aiExtractedData.email);
-      form.setValue("university", aiExtractedData.university);
-      form.setValue("degreeProgram", aiExtractedData.degreeProgram);
-      form.setValue("techStack", aiExtractedData.techStack);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to process CV");
+      }
+
+      const result = await response.json() as { profile: StudentProfile; meta: { fileName: string; textLength: number } };
+      const profile = result.profile;
+
+      // Store the full profile for later matching
+      setStudentProfile(profile);
+
+      // Map the extracted profile to form fields
+      const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+      const techStack = profile.skills.join(", ");
+      
+      // Try to find university name from universityId (fallback to empty)
+      // The profile has universityId like "uni-01", we'd need to resolve it
+      // For now, use a simple approach
+      const university = profile.universityId || "";
+      
+      // Map degree to degree program
+      const degreeMap: Record<string, string> = {
+        bsc: "Bachelor's",
+        msc: "Master's",
+        phd: "PhD",
+      };
+      const degreeProgram = degreeMap[profile.degree] || profile.degree;
+
+      // Update form fields with extracted data
+      form.setValue("fullName", fullName);
+      form.setValue("email", profile.email || "");
+      form.setValue("university", university);
+      form.setValue("degreeProgram", degreeProgram);
+      form.setValue("techStack", techStack);
       
       // Trigger RHF to revalidate after setting values programmatically
       form.trigger();
     } catch (error) {
       console.error("CV Upload failed:", error);
-      // TODO: Add toast notification for failed uploads
+      setUploadError(error instanceof Error ? error.message : "Failed to process CV");
     } finally {
       setIsUploading(false);
     }
@@ -101,9 +121,16 @@ function StudentForm() {
         <div>
           <h3 className="font-semibold text-lg">AI Resume Extraction</h3>
           <p className="text-sm text-muted-foreground mt-1 px-4">
-            Upload your CV (PDF/Word) and let our AI pre-fill everything in seconds.
+            Upload your CV (PDF or TXT) and let our AI pre-fill everything in seconds.
           </p>
         </div>
+        
+        {/* Error message */}
+        {uploadError && (
+          <div className="text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-md">
+            {uploadError}
+          </div>
+        )}
         
         {/* Hidden File Input activated via a styled Label wrapper acting as a Button */}
         <div className="relative">
@@ -111,7 +138,7 @@ function StudentForm() {
             type="file"
             id="cv-upload"
             className="hidden"
-            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
             onChange={handleActualCVUpload}
             disabled={isUploading}
           />

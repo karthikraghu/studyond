@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { type PartialOnboardingData } from "../types/onboarding";
+import { type StudentProfile } from "../types/profile";
 
 // ----------------------------------------------------------------------
 // 1. Defininig the Shape of our Store 
@@ -14,6 +15,9 @@ interface OnboardingStore {
   currentStep: number;
   formData: PartialOnboardingData; 
   isOnboarded: boolean; // Tracks if they fully finished the wizard
+  
+  // --- CV Profile state ---
+  studentProfile: StudentProfile | null; // Full profile from CV extraction
 
   // --- Actions ---
   // Advance or retreat in the wizard flow.
@@ -27,6 +31,9 @@ interface OnboardingStore {
   // We use Partial<PartialOnboardingData> so that we only update the specific 
   // fields they changed (like `{ role: 'student' }`) without erasing the rest.
   updateData: (newData: Partial<PartialOnboardingData>) => void;
+  
+  // Store the full StudentProfile from CV extraction
+  setStudentProfile: (profile: StudentProfile) => void;
   
   // Confirms the wizard is entirely finished
   completeOnboarding: () => void;
@@ -48,6 +55,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       currentStep: 1, 
       formData: {},
       isOnboarded: false,
+      studentProfile: null,
       
       nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 3) })),
       prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
@@ -57,10 +65,12 @@ export const useOnboardingStore = create<OnboardingStore>()(
         set((state) => ({
           formData: { ...state.formData, ...newData },
         })),
+      
+      setStudentProfile: (profile) => set({ studentProfile: profile }),
 
       completeOnboarding: () => set({ isOnboarded: true }),
 
-      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false }),
+      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false, studentProfile: null }),
     }),
     {
       name: "onboarding-storage",
