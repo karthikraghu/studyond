@@ -11,16 +11,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useThesisStore } from '@/store/useThesisStore';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 
-// Sample messages to demonstrate the conversational UI
-const sampleMessages = [
-  {
-    id: '1',
-    role: 'assistant' as const,
-    content: "Hey! 👋 Welcome to Thesis Compass. I'm your AI thesis companion — here to help you manage, plan, and network throughout your thesis journey.\n\nLet's figure out where you are. Have you already found a topic you want to work on?",
-  },
-];
+
 
 // Quick reply chips — pre-composed responses (PRD 6.5.1)
 const quickReplies = [
@@ -31,9 +24,20 @@ const quickReplies = [
 ];
 
 export function ChatPanel() {
-  const [messages, setMessages] = useState<{id: string, role: 'assistant' | 'user', content: string}[]>(sampleMessages as any);
+  const { formData } = useOnboardingStore();
+  
+  const firstName = "fullName" in formData && formData.fullName 
+    ? formData.fullName.split(' ')[0] 
+    : 'there';
+
+  const [messages, setMessages] = useState<{id: string, role: 'assistant' | 'user', content: string}[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: `Hey ${firstName}! 👋 Welcome to Thesis Compass. I'm your AI thesis companion — here to help you manage, plan, and network throughout your thesis journey.\n\nLet's figure out where you are. Have you already found a topic you want to work on?`,
+    }
+  ]);
   const [inputValue, setInputValue] = useState('');
-  const context = useThesisStore((s) => s.context);
 
   const handleSendMessage = (text?: string) => {
     const messageText = text || inputValue;
@@ -54,7 +58,7 @@ export function ChatPanel() {
       const aiResponse = {
         id: (Date.now() + 1).toString(),
         role: 'assistant' as const,
-        content: getSimulatedResponse(messageText, context?.currentStage),
+        content: getSimulatedResponse(messageText, "role" in formData ? formData.role : undefined),
       };
       setMessages((prev) => [...prev, aiResponse]);
     }, 800);

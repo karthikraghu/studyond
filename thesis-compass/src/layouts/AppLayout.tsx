@@ -38,12 +38,14 @@ import {
   Settings,
   ChevronRight,
   PanelLeft,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { studentNavigation, type NavSection } from '@/config/navigation';
 import studyondLogo from '@/assets/studyond.svg';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -53,10 +55,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // For now, always use student navigation.
-  // When you add company flow, swap this based on user role:
-  //   const nav = user.role === 'company' ? companyNavigation : studentNavigation;
+  const { formData, reset } = useOnboardingStore();
+
+  // Dynamically resolve navigation based on role placeholder (expand later when we have more layouts)
   const navigation: NavSection[] = studentNavigation;
+
+  const handleLogout = () => {
+    reset(); // Deeply clears the persistent Zustand store
+    navigate('/'); // Route Guard then allows the user back to the public wizard
+  };
+
+  const fullName = "fullName" in formData && formData.fullName ? formData.fullName : 'Guest User';
+  const email = "email" in formData && formData.email 
+    ? formData.email 
+    : ("workEmail" in formData && formData.workEmail ? formData.workEmail : "guest@studyond.com");
+  
+  const initials = fullName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -118,21 +137,29 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <span>My Settings</span>
           </button>
 
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut className="w-4 h-4" strokeWidth={1.75} />
+            <span>Log out</span>
+          </button>
+
           <Separator className="my-2" />
 
           {/* User profile */}
           <div className="flex items-center gap-2.5 px-2 py-1">
             <Avatar className="w-7 h-7">
               <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
-                KR
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-foreground truncate leading-tight">
-                Karthik Raghuram
+                {fullName}
               </p>
               <p className="text-[11px] text-muted-foreground truncate leading-tight">
-                karthik.raghuram@fau.de
+                {email}
               </p>
             </div>
             <Settings className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" strokeWidth={1.75} />

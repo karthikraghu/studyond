@@ -20,8 +20,11 @@ import {
   SquarePen,
   PlayCircle,
   Bookmark,
+  Briefcase,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 
 // -- Time-aware greeting logic --
 
@@ -52,48 +55,94 @@ interface ActionCard {
   path: string;
 }
 
-const actionCards: ActionCard[] = [
-  {
-    icon: Sparkles,
-    title: 'Let AI Find Your Perfect Topic',
-    highlight: 'AI',
-    description: 'Get personalized topic suggestions based on your skills and interests.',
-    path: '/chat',
-  },
-  {
-    icon: Users,
-    title: 'Find Experts for Interviews',
-    description: 'Connect with industry professionals for expert interviews and insights.',
-    path: '/people',
-  },
-  {
-    icon: Search,
-    title: 'Discover Topics for Your Thesis',
-    description: 'Find thesis topics from university institutes and industry experts.',
-    path: '/topics',
-  },
-  {
-    icon: SquarePen,
-    title: 'Propose Your Own Topic',
-    description: 'Find industry partners open for your topic proposal.',
-    path: '/topics',
-  },
-  {
-    icon: PlayCircle,
-    title: 'Videos: Thesis Writing 101',
-    description: 'Learn how to write a thesis in the social sciences from experienced PhDs.',
-    path: '/resources',
-  },
-];
+function getActionCards(role: "student" | "company" | "supervisor" | undefined): ActionCard[] {
+  // If the user is missing a role, or is a student, show standard student flow
+  if (!role || role === "student") {
+    return [
+      {
+        icon: Sparkles,
+        title: 'Let AI Find Your Perfect Topic',
+        highlight: 'AI',
+        description: 'Get personalized topic suggestions based on your skills and interests.',
+        path: '/chat',
+      },
+      {
+        icon: Users,
+        title: 'Find Experts for Interviews',
+        description: 'Connect with industry professionals for expert interviews and insights.',
+        path: '/people',
+      },
+      {
+        icon: Search,
+        title: 'Discover Topics for Your Thesis',
+        description: 'Find thesis topics from university institutes and industry experts.',
+        path: '/topics',
+      },
+      {
+        icon: SquarePen,
+        title: 'Propose Your Own Topic',
+        description: 'Find industry partners open for your topic proposal.',
+        path: '/topics',
+      },
+      {
+        icon: PlayCircle,
+        title: 'Videos: Thesis Writing 101',
+        description: 'Learn how to write a thesis in the social sciences from experienced PhDs.',
+        path: '/resources',
+      },
+    ];
+  }
+
+  if (role === "company") {
+    return [
+      {
+        icon: Briefcase,
+        title: 'Post a Thesis Topic',
+        highlight: 'Post',
+        description: 'Advertise a research opportunity to our talented student pool.',
+        path: '/topics',
+      },
+      {
+        icon: Users,
+        title: 'Review Student Proposals',
+        description: 'Evaluate incoming pitches from eager undergraduates and postgrads.',
+        path: '/topics',
+      },
+    ];
+  }
+
+  // Supervisor flow
+  return [
+    {
+      icon: GraduationCap,
+      title: 'Review Thesis Drafts',
+      highlight: 'Review',
+      description: 'Check in on your current supervisees and leave feedback.',
+      path: '/topics',
+    },
+    {
+      icon: Users,
+      title: 'Find Top Students',
+      description: 'Scout leading candidates looking for academic supervision.',
+      path: '/people',
+    },
+  ];
+}
 
 // -- Component --
 
 export default function HomePage() {
   const navigate = useNavigate();
   const greeting = getGreeting();
+  const formData = useOnboardingStore((state) => state.formData);
 
-  // TODO: Get from auth/store when user system is built
-  const userName = 'Karthik';
+  // We safely read the user's name if they have filled it out during onboarding.
+  const userName = "fullName" in formData && formData.fullName 
+    ? formData.fullName.split(" ")[0] 
+    : 'Guest';
+  
+  // Dynamically load the layout depending on if they are a student, company, or supervisor.
+  const actionCards = getActionCards(formData.role);
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-5xl">

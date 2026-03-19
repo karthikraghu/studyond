@@ -15,11 +15,12 @@
  */
 
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { routes } from '@/config/routes';
 import AppLayout from '@/layouts/AppLayout';
 import AuthLayout from '@/layouts/AuthLayout';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 import './App.css';
 
 /**
@@ -49,6 +50,29 @@ function LayoutWrapper({ layout, children }: { layout: string; children: React.R
   }
 }
 
+/**
+ * Route Guard — Determines if the user is allowed to view the route.
+ * 
+ * 1. If it requires auth but the user has no role, kick them to Onboarding (/).
+ * 2. If it is the Onboarding page (/) but the user is already authenticated, kick them to Dashboard (/home).
+ */
+function ProtectedRoute({ children, requiresAuth }: { children: React.ReactNode, requiresAuth?: boolean }) {
+  const { isOnboarded } = useOnboardingStore();
+  const location = useLocation();
+
+  if (requiresAuth && !isOnboarded) {
+    // Redirect unauthenticated users to the start of the onboarding flow
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  if (!requiresAuth && isOnboarded && location.pathname === '/') {
+    // Prevent already onboarded users from seeing the wizard again
+    return <Navigate to="/home" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <TooltipProvider>
@@ -62,9 +86,11 @@ export default function App() {
                   key={route.path}
                   path={route.path}
                   element={
-                    <LayoutWrapper layout={route.layout}>
-                      <PageComponent />
-                    </LayoutWrapper>
+                    <ProtectedRoute requiresAuth={route.requiresAuth}>
+                      <LayoutWrapper layout={route.layout}>
+                        <PageComponent />
+                      </LayoutWrapper>
+                    </ProtectedRoute>
                   }
                 />
               );

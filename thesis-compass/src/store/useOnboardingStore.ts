@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { type PartialOnboardingData } from "../types/onboarding";
 
 // ----------------------------------------------------------------------
@@ -11,7 +12,8 @@ import { type PartialOnboardingData } from "../types/onboarding";
 interface OnboardingStore {
   // --- Data state ---
   currentStep: number;
-  formData: PartialOnboardingData; // We start empty and fill it out step by step.
+  formData: PartialOnboardingData; 
+  isOnboarded: boolean; // Tracks if they fully finished the wizard
 
   // --- Actions ---
   // Advance or retreat in the wizard flow.
@@ -26,6 +28,9 @@ interface OnboardingStore {
   // fields they changed (like `{ role: 'student' }`) without erasing the rest.
   updateData: (newData: Partial<PartialOnboardingData>) => void;
   
+  // Confirms the wizard is entirely finished
+  completeOnboarding: () => void;
+  
   // Let's us easily start over, wiping the slate clean.
   reset: () => void;
 }
@@ -37,23 +42,29 @@ interface OnboardingStore {
 // We use `create` from Zustand. It provides a `set` hook to mutate state.
 // Why Zustand? Because it lets multiple isolated step components read/write to 
 // this form without wrapping the whole app in a large React Context provider.
-export const useOnboardingStore = create<OnboardingStore>((set) => ({
-  // Provide sensible defaults.
-  currentStep: 1, 
-  formData: {},
-  
-  // Notice how we use functional updates `set((state) => ...)` so we are guaranteed 
-  // to always have the latest state relative to the last render cycle.
-  nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 3) })), // Limit steps
-  prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
-  setStep: (step) => set({ currentStep: step }),
+export const useOnboardingStore = create<OnboardingStore>()(
+  persist(
+    (set) => ({
+      currentStep: 1, 
+      formData: {},
+      isOnboarded: false,
+      
+      nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 3) })),
+      prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })), // Limit steps
+      setStep: (step) => set({ currentStep: step }),
 
-  // The critical "Save" function. We take existing data, and merge new data in.
-  updateData: (newData) =>
-    set((state) => ({
-      formData: { ...state.formData, ...newData },
-    })),
+      updateData: (newData) =>
+        set((state) => ({
+          formData: { ...state.formData, ...newData },
+        })),
 
-  // Clear everything back to empty for safety
-  reset: () => set({ currentStep: 1, formData: {} }),
-}));
+      completeOnboarding: () => set({ isOnboarded: true }),
+
+      reset: () => set({ currentStep: 1, formData: {}, isOnboarded: false }),
+    }),
+    {
+      name: "onboarding-storage",
+      storage: createJSONStorage(() => localStorage), 
+    }
+  )
+);

@@ -12,24 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useThesisStore } from '@/store/useThesisStore';
-import studentsData from '@/mock-data/students.json';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 
-// Simple mock for "fields" mapping
-const FIELD_MAP: Record<string, string> = {
-  'field-01': 'Software Engineering',
-  'field-02': 'Data Science',
-  'field-03': 'Machine Learning',
-  'field-04': 'Business Administration',
-  'field-08': 'Sustainability',
-  'field-09': 'Mechanical Engineering',
-  'field-13': 'Economics',
-  'field-17': 'Climate Science',
-};
+
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('account');
-  const context = useThesisStore((s) => s.context);
+  const { formData, updateData } = useOnboardingStore();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -49,37 +38,52 @@ export default function SettingsPage() {
   const [newFieldText, setNewFieldText] = useState('');
   const [isAddingField, setIsAddingField] = useState(false);
 
-  // Load from Mock JSON on Mount
+  // Load from Onboarding Store on Mount
   useEffect(() => {
-    if (context?.studentId) {
-      const student = studentsData.find(s => s.id === context.studentId);
-      if (student) {
-        setFirstName(student.firstName);
-        setLastName(student.lastName);
-        setEmail(student.email);
-        setDegree(student.degree);
-        
-        // Map field IDs to field names for UI
-        const readableFields = (student.fieldIds || [])
-          .map(id => FIELD_MAP[id] || id)
-          .slice(0, 3);
-        setFields(readableFields);
-        
-        // Setup mock data for things not in JSON
-        setUniversity(student.universityId === 'uni-01' ? 'ETH Zurich' : student.universityId === 'uni-03' ? 'University of St. Gallen' : 'FAU Erlangen-Nürnberg');
-        setStudyProgram('Information Systems');
+    if ("role" in formData) {
+      const full = formData.fullName || "";
+      const names = full.split(' ');
+      setFirstName(names[0] || '');
+      setLastName(names.slice(1).join(' ') || '');
+      
+      const userEmail = "email" in formData ? formData.email : ("workEmail" in formData ? formData.workEmail : "");
+      if (userEmail) setEmail(userEmail);
+
+      // Attempt to load school/program
+      if ("university" in formData && formData.university) {
+        setUniversity(formData.university);
+      }
+      if ("degreeProgram" in formData && formData.degreeProgram) {
+        setStudyProgram(formData.degreeProgram);
+      }
+      
+      // Load Tech Stack as Fields
+      if ("techStack" in formData && formData.techStack) {
+        setFields(formData.techStack.split(',').map(s => s.trim()));
       }
     }
-  }, [context?.studentId]);
+  }, [formData]);
 
   const handleSave = () => {
-    if (!context?.studentId) {
-      setMessage({ text: 'No student context found.', type: 'error' });
+    if (!("role" in formData)) {
+      setMessage({ text: 'No user session found.', type: 'error' });
       return;
     }
 
     setIsSaving(true);
     setMessage(null);
+
+    // Save changes back to our centralized store
+    const full = `${firstName} ${lastName}`.trim();
+    const newData: any = { fullName: full };
+
+    if ("email" in formData) newData.email = email;
+    if ("workEmail" in formData) newData.workEmail = email;
+    if ("university" in formData) newData.university = university;
+    if ("degreeProgram" in formData) newData.degreeProgram = studyProgram;
+    if ("techStack" in formData) newData.techStack = fields.join(', ');
+
+    updateData(newData);
 
     // Simulate Network Request
     setTimeout(() => {
@@ -110,13 +114,13 @@ export default function SettingsPage() {
     setFields(fields.filter((f) => f !== fieldToRemove));
   };
 
-  if (!context?.studentId) {
+  if (!("role" in formData)) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-muted/20 pb-20">
         <h2 className="text-xl font-medium mb-2">Not Signed In</h2>
-        <p className="text-muted-foreground text-sm">Please select a student from the Sign In page.</p>
+        <p className="text-muted-foreground text-sm">Please complete onboarding to access settings.</p>
         <Button onClick={() => window.location.href = '/'} className="mt-4">
-          Go to Sign In
+          Go to Setup
         </Button>
       </div>
     );

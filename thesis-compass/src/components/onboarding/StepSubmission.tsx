@@ -6,7 +6,7 @@ import { Button } from "../ui/button";
 
 export function StepSubmission() {
   const navigate = useNavigate();
-  const { formData, prevStep, reset } = useOnboardingStore();
+  const { formData, prevStep, completeOnboarding } = useOnboardingStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -36,9 +36,9 @@ export function StepSubmission() {
           </p>
         </div>
         <div className="pt-8">
-          {/* Typically redirects user to Dashboard here */}
+          {/* Redirects user to Dashboard without wiping state */}
           <Button size="lg" onClick={() => {
-            reset();
+            completeOnboarding();
             navigate("/home");
           }}>Go to Dashboard</Button>
         </div>
