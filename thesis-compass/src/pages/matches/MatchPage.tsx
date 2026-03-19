@@ -177,18 +177,20 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-6 lg:px-10 py-10 w-full">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-10">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+        <div className="space-y-3 max-w-2xl">
           <button 
             onClick={() => navigate('/home')}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-2 uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </button>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Your Thesis Matches</h1>
-          <p className="text-muted-foreground max-w-2xl">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-none">
+            Your Thesis Matches
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl font-medium mt-3">
             We've analyzed your GitHub activity, CV, and priorities against {topicsData.length} opportunities. 
             Select a match for a deep AI-powered reality check.
           </p>

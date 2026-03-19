@@ -153,7 +153,7 @@ export default function HomePage() {
   const actionCards = getActionCards(formData.role);
 
   return (
-    <div className="px-6 lg:px-10 py-8 w-full max-w-6xl">
+    <div className="max-w-6xl mx-auto px-6 lg:px-10 py-10 w-full">
       <div className="space-y-12">
         
         {/* ── Greeting ── */}
@@ -162,10 +162,10 @@ export default function HomePage() {
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <h1 className="text-3xl font-bold text-foreground tracking-tight leading-none">
+          <h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter leading-none">
             {greeting.text}, <span className="text-primary italic">{userName}</span>? {greeting.emoji}
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">Welcome back to your Thesis Compass.</p>
+          <p className="text-muted-foreground text-lg mt-3 font-medium max-w-2xl">Welcome back to your Thesis Compass.</p>
         </motion.div>
 
         {/* ── Action Grid ── */}

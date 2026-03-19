@@ -74,15 +74,17 @@ export default function TopicsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-6 lg:px-10 py-10 w-full">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-2">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+        <div className="space-y-3 max-w-2xl">
+          <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest mb-3">
             <Target className="w-4 h-4" /> Portfolio
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight">My Thesis Journey</h1>
-          <p className="text-muted-foreground text-lg">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-none">
+            My Thesis Journey
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl font-medium mt-3">
             Track your confirmed thesis and manage active proposals.
           </p>
         </div>
