@@ -129,4 +129,4 @@ Leading indicators:
 - **Karthik Raghunathan** — [@karthikraghu](https://github.com/karthikraghu)
 - **Laleska** — [@laleska2506](https://github.com/laleska2506)
 - **Daniel Yordanov** — [@yordanovdaniel](https://github.com/yordanovdaniel)
-- **Giuseppe Soccio** — [@gsoccio](https://github.com/gsoccio)
+- **Giuseppe Soccio** — [@giusescc](https://github.com/giusescc)
